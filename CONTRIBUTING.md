@@ -2,11 +2,10 @@
 
 Thank you for your interest in Thuban! Developing a kernel requires strict adherence to memory safety and code style to prevent system-wide instability.
 
-## 1. Coding Style
+## 1. Rules
 
-- **Copyright:** Always include (Copyright (c) `your_name`)
 - **Documentation:** Always document your code
-- **Headers:** Always place header's inside `<include/thuban/>
+- **Headers:** Always place header's inside `<include/thuban/>`
 
 ## 2. Development Workflow
 

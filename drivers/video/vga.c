@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 Trollycat.
+ * VGA driver with color support.
+ */
+
 #include <thuban/vga.h>
 
 static uint16_t *buffer = (uint16_t *)VGA_BUFFER;

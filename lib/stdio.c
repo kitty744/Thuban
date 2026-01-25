@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 Trollycat.
+ * Standard library for Thuban.
+ */
+
 #include <thuban/stdio.h>
 #include <thuban/vga.h>
 

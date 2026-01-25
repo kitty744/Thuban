@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 Trollycat.
+ * Main file containing kernel entry point.
+ */
+
 #include <thuban/vga.h>
 #include <thuban/stdio.h>
 
