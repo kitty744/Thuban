@@ -1,6 +1,6 @@
 # Thuban CHANGELOG
 
-- This file keep's track of all change's made to the operating system during update's.
+This file keep's track of all change's made to the operating system during update's.
 
 ## Version 0.1
 
