@@ -1,0 +1,72 @@
+mainmenu "Thuban Configuration"
+
+menu "Processor and Memory"
+    config MEM_SIZE
+        string "Memory Size"
+        default "2G"
+        help
+          Set the amount of RAM for QEMU.
+          - 512M: Legacy/Testing
+          - 2G: Standard
+          - 15G+: Modern Beast
+
+    config CPU_CORES
+        int "CPU Core Count"
+        default 4
+        help
+          Number of CPU cores to allocate to the guest.
+          Match your physical host for best performance.
+
+    config CPU_TYPE
+        string "CPU Model"
+        default "qemu64"
+        help
+          Tutorial:
+          - max: Best for modern systems.
+          - host: Highest speed (requires KVM).
+          - qemu64: Most compatible.
+endmenu
+
+menu "Display & Graphics"
+    choice
+        prompt "VGA Controller"
+        default VGA_STD
+        help
+          Tutorial:
+          - Standard: Use this for 99% of OS development.
+          - Virtio: High performance, but requires specific drivers.
+
+        config VGA_STD
+            bool "Standard VGA (std)"
+        
+        config VGA_VIRTIO
+            bool "Virtio GPU"
+            
+        config VGA_NONE
+            bool "Headless (No Graphics)"
+    endchoice
+endmenu
+
+menu "Audio and Sound"
+    config AUDIO_ENABLED
+        bool "Enable Audio Hardware"
+        default n
+
+    config SOUNDHW
+        string "Sound Card Device"
+        depends on AUDIO_ENABLED
+        default "pcspk"
+        help
+          Common choices: pcspk, sb16, ac97, hda.
+endmenu
+
+menu "Debugging"
+    config DEBUG_FLAGS
+        string "QEMU Debug Flags (-d)"
+        default "guest_errors"
+        help
+          Tutorial:
+          - guest_errors: Logs weird behavior.
+          - int: Logs every interrupt (very spammy).
+          - cpu_reset: Logs when the CPU reboots.
+endmenu

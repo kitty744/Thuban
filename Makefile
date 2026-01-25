@@ -14,6 +14,8 @@ KERNEL_OBJS = $(patsubst %.s,$(BUILD_DIR)/%.o,$(patsubst %.c,$(BUILD_DIR)/%.o,$(
 KERNEL_BIN = $(BUILD_DIR)/thuban.bin
 KERNEL_ISO = $(BUILD_DIR)/thuban.iso
 
+-include .config
+
 all: $(KERNEL_ISO)
 
 $(KERNEL_ISO): $(KERNEL_BIN)
@@ -39,15 +41,18 @@ $(BUILD_DIR)/%.o: %.s
 	mkdir -p $(dir $@)
 	$(AS) $(ASFLAGS) -o $@ $<
 
+export $(shell [ -f .config ] && sed 's/=.*//' .config)
+KCONFIG_MCONF := $(shell which kconfig-mconf || which mconf || echo kconfig-mconf)
+
 install:
-	chmod +x ./scripts/install.sh
+	@chmod +x ./scripts/install.sh
 	./scripts/install.sh
-
 run: all
-	chmod +x ./scripts/run.sh
+	@chmod +x ./scripts/run.sh
 	./scripts/run.sh
-
+menuconfig:
+	$(KCONFIG_MCONF) Kconfig
 clean:
-	rm -rf $(BUILD_DIR)
+	rm -rf build
 
 .PHONY: all clean install run
