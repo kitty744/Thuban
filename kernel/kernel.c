@@ -6,6 +6,10 @@
 #include <thuban/vga.h>
 #include <thuban/stdio.h>
 
+/*
+ * Entry point method, responsible for initalizing all kernel system's.
+ * This Is called by the bootloader assembly file.
+ */
 void kmain(void)
 {
     vga_init();
