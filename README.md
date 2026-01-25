@@ -18,7 +18,6 @@ Thuban is an operating system designed to run on both old and new hardware.
 - **grub-mkrescue**: ISO creation
 - **qemu-system-x86_64**: Emulation/testing
 - **kconfig-frontends**: Kernel configuration frontend
-- **coccinelle**: Debugging/Safety.
 
 ## Building and Running
 
@@ -28,13 +27,16 @@ Thuban is an operating system designed to run on both old and new hardware.
 # 1. Install dependencies
 make install
 
-# 2. Build and run with configured settings
+# 2. Configure kernel settings (optional)
+make menuconfig
+
+# 3. Build and run with configured settings
 make run
 
-# 3. Build only (no QEMU)
+# 4. Build only (no QEMU)
 make all
 
-# 4. Clean build artifacts
+# 5. Clean build artifacts
 make clean
 ```
 
