@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# This script Install's all required dependencies for building.
+# You will likely run this before booting the operating system.
+
+# Exit upon error's
 set -e
 
 echo "Installing Thuban OS dependencies..."
