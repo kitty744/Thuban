@@ -1,0 +1,28 @@
+# 1. Force Unix line endings for all source code
+# This prevents "Invalid Character" errors in compilers/assemblers
+* text=auto eol=lf
+
+# 2. C and Header files: use C-specific diffing logic
+*.c diff=cpp
+*.h diff=cpp
+
+# 3. Assembly files: ensure they are treated as text
+*.s text
+*.S text
+*.asm text
+
+# 4. Linker scripts and Makefiles
+*.ld text
+Makefile text
+Kbuild text
+
+# 5. Binary files: PROTECT THESE
+# This prevents Git from trying to "fix" line endings in data, which would corrupt them
+*.bin binary
+*.img binary
+*.iso binary
+*.o   binary
+*.a   binary
+
+# 6. Documentation
+*.md text
