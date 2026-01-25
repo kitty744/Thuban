@@ -9,12 +9,18 @@
 static size_t term_x = 0;
 static size_t term_y = 0;
 
+/*
+ * Scroll's the terminal (fake-camera)
+ */
 static void term_scroll(void)
 {
     vga_scroll_up();
     term_y = VGA_HEIGHT - 1;
 }
 
+/*
+ * Create's a newline on the terminal screen.
+ */
 static void term_newline(void)
 {
     term_x = 0;
@@ -26,6 +32,9 @@ static void term_newline(void)
     vga_set_cursor_pos(term_x, term_y);
 }
 
+/*
+ * Wrap's the text into a newline.
+ */
 static void term_advance(void)
 {
     term_x++;
@@ -39,11 +48,18 @@ static void term_advance(void)
     }
 }
 
+/*
+ * Simple wrapper.
+ * NOTE: Actually call's putchar, putc is a wrapper for a simpler name.
+ */
 int putc(int c)
 {
     return putchar(c);
 }
 
+/*
+ * Put's a character onto the screen using VGA.
+ */
 int putchar(int c)
 {
     if (c == '\n')
@@ -86,6 +102,11 @@ int putchar(int c)
     return c;
 }
 
+/*
+ * Put's text onto the screen using VGA (driver)
+ * NOTE: This actually just take's the String input and call's putchar for every character in the string.
+ * EXAMPLE: puts("Hello, kernel!");
+ */
 int puts(const char *s)
 {
     if (!s)
@@ -101,6 +122,7 @@ int puts(const char *s)
     return count + 1;
 }
 
+// ALL OF THESE METHOD'S ARE NOT YET IMPLEMENTED, PLACEHOLDER'S HELD HERE.
 int getc(void)
 {
     return -1;
@@ -124,6 +146,12 @@ char *fgets(char *s, int size)
     return NULL;
 }
 
+/*
+ * Print's a string to the screen
+ * NOTE: This is a pretty advanced way to print strings
+ * This is for exact precison
+ * You will likely do puts("") or printf("")
+ */
 static void print_string(const char *s, int width, int precision, int left_align)
 {
     int len = 0;
@@ -156,6 +184,9 @@ static void print_string(const char *s, int width, int precision, int left_align
     }
 }
 
+/*
+ * Precise way to print Integer to the screen using VGA driver.
+ */
 static void print_int(long long num, int base, int width, int precision, int left_align, int zero_pad, int sign, int uppercase)
 {
     char buffer[64];
@@ -235,6 +266,9 @@ static void print_int(long long num, int base, int width, int precision, int lef
     }
 }
 
+/*
+ * Precise way to print Unsigned Integer to the screen using VGA driver
+ */
 static void print_uint(unsigned long long num, int base, int width, int precision, int left_align, int zero_pad, int uppercase)
 {
     char buffer[64];
@@ -295,6 +329,9 @@ static void print_uint(unsigned long long num, int base, int width, int precisio
     }
 }
 
+/*
+ * Print's a (void* pointer) to the screen.
+ */
 static void print_ptr(void *ptr)
 {
     putchar('0');
@@ -302,6 +339,11 @@ static void print_ptr(void *ptr)
     print_uint((unsigned long long)ptr, 16, 16, -1, 0, 1, 0);
 }
 
+/*
+ * Method to handle formatting.
+ * NOTE: This method is called by printf() and will likely not be called by the programmer.
+ * This Is just to seperate formatting logic from printf()
+ */
 int vprintf(const char *format, va_list args)
 {
     int count = 0;
@@ -501,6 +543,19 @@ int vprintf(const char *format, va_list args)
     return count;
 }
 
+/*
+ * Method to print thing's to the screen, with formatting.
+ * You could just use printf("Hello Kernel"), however In that case you should just simply do puts("Hello Kernel").
+ * This method Is for formatting.
+ * EXAMPLE: printf("Hello, Kernel! This Is an integer formatting example: %d", 1);
+ * Formatting start's with '%' then the type
+ * There Is many formatting option's.
+ * Most common one's are:
+ *  - %d (integer)
+ *  - %s (string)
+ *  - %c (char)
+ * NOTE: Actual formatting Is handled in vprintf, this method call's vprintf.
+ */
 int printf(const char *format, ...)
 {
     va_list args;
@@ -510,6 +565,7 @@ int printf(const char *format, ...)
     return result;
 }
 
+// THESE METHOD'S ARE WRAPPER'S AND ARE UNFINISHED.
 int vsprintf(char *str, const char *format, va_list args)
 {
     (void)str;
