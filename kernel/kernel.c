@@ -13,6 +13,8 @@
 #include <thuban/gdt.h>
 #include <thuban/idt.h>
 #include <thuban/interrupts.h>
+#include <thuban/keyboard.h>
+#include <thuban/shell.h>
 
 /*
  * Entry point method responsible for initializing all kernel systems
@@ -33,9 +35,13 @@ void kmain(uint32_t multiboot_magic, void *multiboot_addr)
     vmm_init();
     heap_init();
 
+    // initialize hardware
     gdt_init();
     idt_init();
     interrupts_init();
+
+    keyboard_init();
+    interrupts_enable();
 
     // display memory info
     uint64_t total_mem = pmm_get_total_memory();
@@ -57,6 +63,9 @@ void kmain(uint32_t multiboot_magic, void *multiboot_addr)
     printf("  Used:  %llu KB\n", heap_used / 1024);
     printf("  Free:  %llu KB\n", heap_free / 1024);
 
+    // Shell
+    shell_init();
+    shell_run();
     while (1)
     {
         asm volatile("hlt");
