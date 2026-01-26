@@ -10,6 +10,9 @@
 #include <thuban/vmm.h>
 #include <thuban/paging.h>
 #include <thuban/heap.h>
+#include <thuban/gdt.h>
+#include <thuban/idt.h>
+#include <thuban/interrupts.h>
 
 /*
  * Entry point method responsible for initializing all kernel systems
@@ -29,6 +32,10 @@ void kmain(uint32_t multiboot_magic, void *multiboot_addr)
     paging_init();
     vmm_init();
     heap_init();
+
+    gdt_init();
+    idt_init();
+    interrupts_init();
 
     // display memory info
     uint64_t total_mem = pmm_get_total_memory();

@@ -6,11 +6,6 @@
 
 - Finish stdio library (integrate string library, etc...)
 
-### Hardware
-
-- Create Interrupt Descriptor Table
-- Create Global Descriptor Table
-
 ### Drivers
 
 - Create keyboard

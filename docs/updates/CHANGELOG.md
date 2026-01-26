@@ -18,10 +18,15 @@ This file keep's track of all change's made to the operating system during updat
 
 - VGA driver
 
-**Memory Management**
+**Memory Management:**
 
 - multiboot parser
 - Heap
 - Paging
 - Virtual memory manager
 - Physical memory manager
+
+**Hardware**
+
+- Interrupt Descriptor Table
+- Global Descriptor Table
