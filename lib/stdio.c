@@ -1,16 +1,17 @@
 /*
- * Copyright (c) 2026 Trollycat.
- * Standard library for Thuban.
+ * Copyright (c) 2026 Trollycat
+ * Standard library for Thuban
  */
 
 #include <thuban/stdio.h>
 #include <thuban/vga.h>
+#include <thuban/string.h>
 
 static size_t term_x = 0;
 static size_t term_y = 0;
 
 /*
- * Scroll's the terminal (fake-camera)
+ * Scroll's the terminal up one line
  */
 static void term_scroll(void)
 {
@@ -19,7 +20,7 @@ static void term_scroll(void)
 }
 
 /*
- * Create's a newline on the terminal screen.
+ * Create's a newline on the terminal screen
  */
 static void term_newline(void)
 {
@@ -33,7 +34,7 @@ static void term_newline(void)
 }
 
 /*
- * Wrap's the text into a newline.
+ * Advance's the cursor and wrap's text to next line if needed
  */
 static void term_advance(void)
 {
@@ -49,8 +50,8 @@ static void term_advance(void)
 }
 
 /*
- * Simple wrapper.
- * NOTE: Actually call's putchar, putc is a wrapper for a simpler name.
+ * Simple wrapper for putchar
+ * NOTE: Actually call's putchar, putc is just a wrapper for a simpler name
  */
 int putc(int c)
 {
@@ -58,7 +59,7 @@ int putc(int c)
 }
 
 /*
- * Put's a character onto the screen using VGA.
+ * Put's a character onto the screen using VGA driver
  */
 int putchar(int c)
 {
@@ -103,9 +104,9 @@ int putchar(int c)
 }
 
 /*
- * Put's text onto the screen using VGA (driver)
- * NOTE: This actually just take's the String input and call's putchar for every character in the string.
- * EXAMPLE: puts("Hello, kernel!");
+ * Put's text onto the screen using VGA driver
+ * NOTE: This actually just take's the string input and call's putchar for every character in the string
+ * EXAMPLE: puts("Hello, kernel!")
  */
 int puts(const char *s)
 {
@@ -122,23 +123,37 @@ int puts(const char *s)
     return count + 1;
 }
 
-// ALL OF THESE METHOD'S ARE NOT YET IMPLEMENTED, PLACEHOLDER'S HELD HERE.
+/*
+ * Get's a character from input
+ * NOTE: Not implemented yet, keyboard driver needed first
+ */
 int getc(void)
 {
     return -1;
 }
 
+/*
+ * Wrapper for getc
+ */
 int getchar(void)
 {
     return getc();
 }
 
+/*
+ * Get's a string from input
+ * NOTE: Not implemented yet, keyboard driver needed first
+ */
 char *gets(char *s)
 {
     (void)s;
     return NULL;
 }
 
+/*
+ * Get's a string from input with size limit
+ * NOTE: Not implemented yet, keyboard driver needed first
+ */
 char *fgets(char *s, int size)
 {
     (void)s;
@@ -147,10 +162,9 @@ char *fgets(char *s, int size)
 }
 
 /*
- * Print's a string to the screen
- * NOTE: This is a pretty advanced way to print strings
- * This is for exact precison
- * You will likely do puts("") or printf("")
+ * Print's a string to the screen with formatting option's
+ * NOTE: This is for precise formatting
+ * You will likely use puts("") or printf("") instead
  */
 static void print_string(const char *s, int width, int precision, int left_align)
 {
@@ -185,7 +199,7 @@ static void print_string(const char *s, int width, int precision, int left_align
 }
 
 /*
- * Precise way to print Integer to the screen using VGA driver.
+ * Precise way to print integer to the screen
  */
 static void print_int(long long num, int base, int width, int precision, int left_align, int zero_pad, int sign, int uppercase)
 {
@@ -267,7 +281,7 @@ static void print_int(long long num, int base, int width, int precision, int lef
 }
 
 /*
- * Precise way to print Unsigned Integer to the screen using VGA driver
+ * Precise way to print unsigned integer to the screen
  */
 static void print_uint(unsigned long long num, int base, int width, int precision, int left_align, int zero_pad, int uppercase)
 {
@@ -330,7 +344,7 @@ static void print_uint(unsigned long long num, int base, int width, int precisio
 }
 
 /*
- * Print's a (void* pointer) to the screen.
+ * Print's a pointer to the screen
  */
 static void print_ptr(void *ptr)
 {
@@ -340,9 +354,9 @@ static void print_ptr(void *ptr)
 }
 
 /*
- * Method to handle formatting.
- * NOTE: This method is called by printf() and will likely not be called by the programmer.
- * This Is just to seperate formatting logic from printf()
+ * Handle's formatting for printf
+ * NOTE: This method is called by printf and will likely not be called by the programmer directly
+ * This is just to separate formatting logic from printf
  */
 int vprintf(const char *format, va_list args)
 {
@@ -450,6 +464,7 @@ int vprintf(const char *format, va_list args)
             if (!s)
                 s = "(null)";
             print_string(s, width, precision, left_align);
+            count += strlen(s);
             break;
         }
         case 'd':
@@ -544,17 +559,17 @@ int vprintf(const char *format, va_list args)
 }
 
 /*
- * Method to print thing's to the screen, with formatting.
- * You could just use printf("Hello Kernel"), however In that case you should just simply do puts("Hello Kernel").
- * This method Is for formatting.
- * EXAMPLE: printf("Hello, Kernel! This Is an integer formatting example: %d", 1);
+ * Print's thing's to the screen with formatting
+ * You could just use printf("Hello Kernel") however in that case you should just simply do puts("Hello Kernel")
+ * This method is for formatting
+ * EXAMPLE: printf("Hello, Kernel! This is an integer formatting example: %d", 1)
  * Formatting start's with '%' then the type
- * There Is many formatting option's.
+ * There is many formatting option's
  * Most common one's are:
  *  - %d (integer)
  *  - %s (string)
  *  - %c (char)
- * NOTE: Actual formatting Is handled in vprintf, this method call's vprintf.
+ * NOTE: Actual formatting is handled in vprintf this method call's vprintf
  */
 int printf(const char *format, ...)
 {
@@ -565,7 +580,10 @@ int printf(const char *format, ...)
     return result;
 }
 
-// THESE METHOD'S ARE WRAPPER'S AND ARE UNFINISHED.
+/*
+ * Print's formatted output to a string buffer
+ * NOTE: Not fully implemented yet
+ */
 int vsprintf(char *str, const char *format, va_list args)
 {
     (void)str;
@@ -574,6 +592,10 @@ int vsprintf(char *str, const char *format, va_list args)
     return 0;
 }
 
+/*
+ * Print's formatted output to a string buffer
+ * NOTE: Not fully implemented yet
+ */
 int sprintf(char *str, const char *format, ...)
 {
     va_list args;
@@ -583,6 +605,10 @@ int sprintf(char *str, const char *format, ...)
     return result;
 }
 
+/*
+ * Print's formatted output to a string buffer with size limit
+ * NOTE: Not fully implemented yet
+ */
 int vsnprintf(char *str, size_t size, const char *format, va_list args)
 {
     (void)str;
@@ -592,6 +618,10 @@ int vsnprintf(char *str, size_t size, const char *format, va_list args)
     return 0;
 }
 
+/*
+ * Print's formatted output to a string buffer with size limit
+ * NOTE: Not fully implemented yet
+ */
 int snprintf(char *str, size_t size, const char *format, ...)
 {
     va_list args;
