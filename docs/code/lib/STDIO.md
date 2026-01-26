@@ -7,6 +7,7 @@ The **stdio** library provides high-level text output and formatting for the Thu
 ### putchar()
 
 **Usage:** int putchar(int c);
+
 **About:** Writes a character to the screen at (term_x, term_y).
 
 - **Special Handling:**
@@ -18,6 +19,7 @@ The **stdio** library provides high-level text output and formatting for the Thu
 ### putc()
 
 **Usage:** int putc(int c);
+
 **About:** A functional wrapper for putchar().
 
 ### puts()
