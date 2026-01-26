@@ -6,6 +6,7 @@
 #include <thuban/stdio.h>
 #include <thuban/vga.h>
 #include <thuban/string.h>
+#include <thuban/keyboard.h>
 
 static size_t term_x = 0;
 static size_t term_y = 0;
@@ -124,41 +125,100 @@ int puts(const char *s)
 }
 
 /*
- * Get's a character from input
- * NOTE: Not implemented yet, keyboard driver needed first
+ * Wrapper for getchar
  */
 int getc(void)
 {
-    return -1;
+    return getchar();
 }
 
 /*
- * Wrapper for getc
+ * Get's a chracter from the keyboard
  */
 int getchar(void)
 {
-    return getc();
+    while (!keyboard_available())
+    {
+        asm volatile("hlt");
+    }
+    return keyboard_getchar();
 }
 
 /*
  * Get's a string from input
- * NOTE: Not implemented yet, keyboard driver needed first
+ * NOTE: Reads until newline and null-terminates
  */
 char *gets(char *s)
 {
-    (void)s;
-    return NULL;
+    if (!s)
+        return NULL;
+
+    int i = 0;
+    while (1)
+    {
+        int c = getchar();
+
+        if (c == '\n' || c == '\r')
+        {
+            s[i] = '\0';
+            putchar('\n');
+            break;
+        }
+        else if (c == '\b')
+        {
+            if (i > 0)
+            {
+                i--;
+                putchar('\b');
+            }
+        }
+        else if (c >= 32 && c <= 126)
+        {
+            s[i++] = c;
+            putchar(c);
+        }
+    }
+
+    return s;
 }
 
 /*
  * Get's a string from input with size limit
- * NOTE: Not implemented yet, keyboard driver needed first
+ * NOTE: Reads at most size-1 characters
  */
 char *fgets(char *s, int size)
 {
-    (void)s;
-    (void)size;
-    return NULL;
+    if (!s || size <= 0)
+        return NULL;
+
+    int i = 0;
+    while (i < size - 1)
+    {
+        int c = getchar();
+
+        if (c == '\n' || c == '\r')
+        {
+            s[i] = '\0';
+            putchar('\n');
+            break;
+        }
+        else if (c == '\b')
+        {
+            if (i > 0)
+            {
+                i--;
+                putchar('\b');
+            }
+        }
+        else if (c >= 32 && c <= 126)
+        {
+            s[i++] = c;
+            putchar(c);
+        }
+    }
+
+    s[i] = '\0';
+    return s;
 }
 
 /*
