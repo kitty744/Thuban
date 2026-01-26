@@ -6,14 +6,6 @@
 
 - Finish stdio library (integrate string library, etc...)
 
-### Memory Management
-
-- Create multiboot parser
-- Create Heap
-- Create Paging
-- Create Virtual memory manager
-- Create Physical memory manager
-
 ### Hardware
 
 - Create Interrupt Descriptor Table

@@ -94,8 +94,9 @@ long_mode_start:
     
     mov rsp, stack_top
     
+    ; pass multiboot magic and info pointer to kernel
     mov edi, ebp
-    mov esi, esi
+    mov rsi, rsi
     
     call kmain
     

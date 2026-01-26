@@ -17,3 +17,11 @@ This file keep's track of all change's made to the operating system during updat
 **Driver's:**
 
 - VGA driver
+
+**Memory Management**
+
+- multiboot parser
+- Heap
+- Paging
+- Virtual memory manager
+- Physical memory manager
