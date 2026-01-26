@@ -1,30 +1,30 @@
 # Stdio library documentation for Thuban.
 
-Welcome! Here you will find documentation on how to use the Stdio library.
+Here you will find documentation on how to use the **stdio** library.
+The **stdio** library provide's many helpers, used to make development way easier.
 
 ## 1. printf()
 
 **About:** printf Is a method defined In the stdio library for Thuban, It allow's the user to print something to the screen with formatting.
 
-**printf** come's with many formatting specificers. The most common one's are:
+**printf** come's with many formatting option's. The most common one's are:
 
-```
-%d - Print's integer
-%c - Print's character
-%s - Print's string
-```
+| Format  | Value                |
+| :------ | :------------------- |
+| **%d**  | **Integer**          |
+| **%ud** | **Unsigned Integer** |
+| **%c**  | **Character**        |
+| **%s**  | **String**           |
 
 **Example Usage:**
 
 ```
 #include <stdio.h>
 
-void kmain()
+void example()
 {
-    printf("Hello, world! This Is an integer: %d", 1);
+    printf("INTEGER: %d, STRING: %s, CHARACTER: %c", 1, "Hi", 'C');
 }
 
 output: 1
 ```
-
-As you can see from the **Example Usage**, you place the format Inside the "" string, then have the variable/value after the comma.
