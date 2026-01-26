@@ -123,15 +123,8 @@ static void cmd_sysinfo(int argc, char **argv)
 
     struct multiboot_info *mbi = multiboot_get_info();
 
-    printf("Thuban OS v0.1\n");
-
-    if (mbi->bootloader_name)
-    {
-        printf("Bootloader: %s\n", mbi->bootloader_name);
-    }
-
-    printf("Total RAM: %llu MB\n", mbi->total_mem / 1024 / 1024);
-    printf("Kernel Stack: 64 KB\n");
+    puts("[NAME]: Thuban");
+    puts("[VERSION]: 0.2");
 }
 
 /*
@@ -157,8 +150,6 @@ static void cmd_reboot(int argc, char **argv)
 {
     (void)argc;
     (void)argv;
-
-    printf("Rebooting system...\n");
 
     // use keyboard controller to reboot
     uint8_t temp;

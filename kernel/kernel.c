@@ -43,29 +43,10 @@ void kmain(uint32_t multiboot_magic, void *multiboot_addr)
     keyboard_init();
     interrupts_enable();
 
-    // display memory info
-    uint64_t total_mem = pmm_get_total_memory();
-    uint64_t used_mem = pmm_get_used_memory();
-    uint64_t free_mem = pmm_get_free_memory();
-
-    vga_set_color(COLOR_LIGHT_GREEN, COLOR_BLACK);
-    printf("\nPhysical Memory:\n");
-    printf("  Total: %llu MB\n", total_mem / 1024 / 1024);
-    printf("  Used:  %llu MB (%llu KB)\n", used_mem / 1024 / 1024, used_mem / 1024);
-    printf("  Free:  %llu MB\n", free_mem / 1024 / 1024);
-
-    uint64_t heap_total = heap_get_total();
-    uint64_t heap_used = heap_get_used();
-    uint64_t heap_free = heap_get_free();
-
-    printf("\nHeap Memory:\n");
-    printf("  Total: %llu KB\n", heap_total / 1024);
-    printf("  Used:  %llu KB\n", heap_used / 1024);
-    printf("  Free:  %llu KB\n", heap_free / 1024);
-
     // Shell
     shell_init();
     shell_run();
+
     while (1)
     {
         asm volatile("hlt");
