@@ -17,6 +17,7 @@ This file keep's track of all change's made to the operating system during updat
 **Driver's:**
 
 - VGA driver
+- Keyboard driver
 
 **Memory Management:**
 
@@ -26,7 +27,11 @@ This file keep's track of all change's made to the operating system during updat
 - Virtual memory manager
 - Physical memory manager
 
-**Hardware**
+**Hardware:**
 
 - Interrupt Descriptor Table
 - Global Descriptor Table
+
+**Interface:**
+
+- Shell with basic commands

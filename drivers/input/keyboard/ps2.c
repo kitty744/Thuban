@@ -7,6 +7,7 @@
 #include <thuban/interrupts.h>
 #include <thuban/io.h>
 #include <thuban/stdio.h>
+#include <thuban/vga.h>
 
 // keyboard state
 static uint8_t shift_pressed = 0;
@@ -52,64 +53,31 @@ static void kb_buffer_add(char c)
 
 /*
  * Handle's special arrow keys and extended keys
+ * NOTE: Add special codes to buffer so shell can handle them
  */
 static void handle_extended_key(uint8_t scancode)
 {
-    char seq[4];
-
     switch (scancode)
     {
-    case KEY_UP:
-        // ANSI escape sequence for up arrow
-        seq[0] = '\033';
-        seq[1] = '[';
-        seq[2] = 'A';
-        kb_buffer_add(seq[0]);
-        kb_buffer_add(seq[1]);
-        kb_buffer_add(seq[2]);
-        break;
-    case KEY_DOWN:
-        seq[0] = '\033';
-        seq[1] = '[';
-        seq[2] = 'B';
-        kb_buffer_add(seq[0]);
-        kb_buffer_add(seq[1]);
-        kb_buffer_add(seq[2]);
+    case KEY_LEFT:
+        kb_buffer_add(0x1B); // ESC
+        kb_buffer_add('[');
+        kb_buffer_add('D'); // left arrow sequence
         break;
     case KEY_RIGHT:
-        seq[0] = '\033';
-        seq[1] = '[';
-        seq[2] = 'C';
-        kb_buffer_add(seq[0]);
-        kb_buffer_add(seq[1]);
-        kb_buffer_add(seq[2]);
+        kb_buffer_add(0x1B); // ESC
+        kb_buffer_add('[');
+        kb_buffer_add('C'); // right arrow sequence
         break;
-    case KEY_LEFT:
-        seq[0] = '\033';
-        seq[1] = '[';
-        seq[2] = 'D';
-        kb_buffer_add(seq[0]);
-        kb_buffer_add(seq[1]);
-        kb_buffer_add(seq[2]);
-        break;
+    case KEY_UP:
+    case KEY_DOWN:
     case KEY_HOME:
-        seq[0] = '\033';
-        seq[1] = '[';
-        seq[2] = 'H';
-        kb_buffer_add(seq[0]);
-        kb_buffer_add(seq[1]);
-        kb_buffer_add(seq[2]);
-        break;
     case KEY_END:
-        seq[0] = '\033';
-        seq[1] = '[';
-        seq[2] = 'F';
-        kb_buffer_add(seq[0]);
-        kb_buffer_add(seq[1]);
-        kb_buffer_add(seq[2]);
-        break;
     case KEY_DELETE:
-        kb_buffer_add(127); // DEL character
+    case KEY_INSERT:
+    case KEY_PGUP:
+    case KEY_PGDN:
+        // ignore these keys
         break;
     default:
         break;
@@ -248,8 +216,6 @@ void keyboard_init(void)
     uint8_t mask = inb(PIC1_DATA);
     mask &= ~0x02; // clear bit 1
     outb(PIC1_DATA, mask);
-
-    printf("[KEYBOARD] PS/2 driver initialized\n");
 }
 
 /*

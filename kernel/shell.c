@@ -83,6 +83,7 @@ static void cmd_clear(int argc, char **argv)
 
     vga_clear_screen();
     vga_set_cursor_pos(0, 0);
+    terminal_reset();
 }
 
 /*

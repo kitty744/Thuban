@@ -4,6 +4,12 @@
 #include <stdarg.h>
 #include <stddef.h>
 
+// terminal
+void terminal_reset(void);
+void term_scroll(void);
+void term_newline(void);
+void term_advance(void);
+
 // character I/O
 int putc(int c);
 int putchar(int c);
