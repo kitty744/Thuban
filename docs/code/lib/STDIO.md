@@ -25,7 +25,9 @@ The **stdio** library provides high-level text output and formatting for the Thu
 ### puts()
 
 **Usage:** int puts(const char \*s);
+
 **About:** Writes a null-terminated string followed by a newline.
+
 **Example:**
 
 ```c
@@ -39,6 +41,7 @@ puts("Kernel initialized.");
 ### printf() / vprintf()
 
 **Usage:** int printf(const char \*format, ...);
+
 **About:** Processes a format string to display variables.
 
 **Supported Specifiers:**
