@@ -4,6 +4,12 @@
  */
 
 #include <thuban/vga.h>
+#include <thuban/module.h>
+
+MODULE_AUTHOR("Trollycat");
+MODULE_DESCRIPTION("VGA Driver");
+MODULE_LICENSE("MIT");
+MODULE_VERSION("0.1");
 
 static uint16_t *buffer = (uint16_t *)VGA_BUFFER;
 static uint8_t current_color = 0x0F;

@@ -8,6 +8,12 @@
 #include <thuban/io.h>
 #include <thuban/stdio.h>
 #include <thuban/vga.h>
+#include <thuban/module.h>
+
+MODULE_AUTHOR("Trollycat");
+MODULE_DESCRIPTION("PS/2 Keyboard Driver");
+MODULE_LICENSE("MIT");
+MODULE_VERSION("0.1");
 
 // keyboard state
 static uint8_t shift_pressed = 0;
