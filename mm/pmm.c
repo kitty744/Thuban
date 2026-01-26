@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2026 Trollycat
  * Physical Memory Manager implementation
- * Uses bitmap-based allocation like Linux
+ * Uses bitmap-based allocation
  */
 
 #include <thuban/pmm.h>
