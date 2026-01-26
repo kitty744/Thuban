@@ -1,28 +1,79 @@
-# Stdio library documentation for Thuban.
+cat << 'EOF' > STDIO.md
 
-Here you will find documentation on how to use the **stdio** library.
-The **stdio** library provide's many helpers, used to make development way easier.
+# Stdio library documentation for Thuban
 
-## 1. printf()
+The **stdio** library provides high-level text output and formatting for the Thuban kernel, interacting directly with the VGA driver.
 
-**About:** printf Is a method defined In the stdio library for Thuban, It allow's the user to print something to the screen with formatting.
+## 1. Output Methods
 
-**printf** come's with many formatting option's. The most common one's are:
+### putchar()
 
-| Format  | Value                |
-| :------ | :------------------- |
-| **%d**  | **Integer**          |
-| **%ud** | **Unsigned Integer** |
-| **%c**  | **Character**        |
-| **%s**  | **String**           |
+**Usage:** int putchar(int c);
+**About:** Writes a character to the screen at (term_x, term_y).
 
-**Example Usage:**
+- **Special Handling:**
+  - \n : Moves to a new line; triggers terminal scroll if at the bottom.
+  - \r : Resets horizontal position (term_x) to 0.
+  - \t : Advances to the next 4-space tab stop.
+  - \b : Moves back one space and overwrites the character with a blank cell.
 
+### putc()
+
+**Usage:** int putc(int c);
+**About:** A functional wrapper for putchar().
+
+### puts()
+
+**Usage:** int puts(const char \*s);
+**About:** Writes a null-terminated string followed by a newline.
+**Example:**
+
+```c
+puts("Kernel initialized.");
 ```
-#include <stdio.h>
 
-void example()
-{
-    printf("INTEGER: %d, STRING: %s, CHARACTER: %c", 1, "Hi", 'C');
-}
-```
+---
+
+## 2. Formatting (printf)
+
+### printf() / vprintf()
+
+**Usage:** int printf(const char \*format, ...);
+**About:** Processes a format string to display variables.
+
+**Supported Specifiers:**
+
+- %d, %i : Signed integers (supports 'l' and 'll' modifiers).
+- %u : Unsigned integers.
+- %x, %X : Hexadecimal (lowercase/uppercase).
+- %o : Octal.
+- %s : Null-terminated strings.
+- %c : Single characters.
+- %p : Pointer addresses (auto-prefixes 0x and pads to 16 chars).
+- %% : Prints a literal '%' sign.
+
+**Formatting Flags:**
+
+- '-' : Left-align within field width.
+- '0' : Pad with zeros instead of spaces.
+- Width : Define minimum character width (e.g., %10d).
+- Precision : Define string limit or integer padding (e.g., %.5s).
+
+---
+
+## 3. Unfinished / Stubs
+
+### Input Methods
+
+These require a keyboard driver to be implemented. Currently, they return error values.
+
+- **getc() / getchar()**: Will read a single character from input. Returns -1.
+- **gets() / fgets()**: Will read a string from input. Returns NULL.
+
+### String Buffering
+
+These are stubs for formatting text into a memory buffer rather than the screen.
+
+- **sprintf() / vsprintf()**: Formats output into a char buffer. Returns 0.
+- **snprintf() / vsnprintf()**: Formats output into a buffer with a size limit. Returns 0.
+  EOF
