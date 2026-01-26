@@ -1,5 +1,3 @@
-cat << 'EOF' > STDIO.md
-
 # Stdio library documentation for Thuban
 
 The **stdio** library provides high-level text output and formatting for the Thuban kernel, interacting directly with the VGA driver.
@@ -76,4 +74,3 @@ These are stubs for formatting text into a memory buffer rather than the screen.
 
 - **sprintf() / vsprintf()**: Formats output into a char buffer. Returns 0.
 - **snprintf() / vsnprintf()**: Formats output into a buffer with a size limit. Returns 0.
-  EOF
