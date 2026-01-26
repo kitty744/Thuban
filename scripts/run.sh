@@ -23,10 +23,11 @@ if [ "$CONFIG_AUDIO_ENABLED" = "y" ]; then
 fi
 
 # --- 2. BUILD & RUN ---
-echo "[INFO]: Cleaning and Building Thuban..."
 make clean && make all
+clear
 
-echo "[INFO]: Launching QEMU ($Q_ARCH | $Q_CPU | $Q_MEM RAM)"
+echo "[INFO]: Cleaning and Building Thuban..."
+echo "[INFO]: ($Q_ARCH | $Q_CPU | $Q_MEM RAM)"
 
 qemu-system-x86_64 \
     -m $Q_MEM \
@@ -42,3 +43,4 @@ qemu-system-x86_64 \
 
 # Cleanup after closing QEMU
 make clean
+clear
