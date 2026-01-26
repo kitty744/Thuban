@@ -25,6 +25,4 @@ void example()
 {
     printf("INTEGER: %d, STRING: %s, CHARACTER: %c", 1, "Hi", 'C');
 }
-
-output: 1
 ```
