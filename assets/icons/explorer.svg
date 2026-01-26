@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="90.089951mm"
+   height="47.746765mm"
+   viewBox="0 0 90.089951 47.746765"
+   version="1.1"
+   id="svg1"
+   inkscape:version="1.4.3 (1:1.4.3+202512261035+0d15f75042)"
+   sodipodi:docname="explorer.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     inkscape:zoom="0.52724989"
+     inkscape:cx="134.66101"
+     inkscape:cy="317.68618"
+     inkscape:window-width="1920"
+     inkscape:window-height="1046"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer8" />
+  <defs
+     id="defs1" />
+  <g
+     inkscape:groupmode="layer"
+     id="layer9"
+     inkscape:label="Layer 2"
+     transform="translate(-50.551298,-93.208108)">
+    <rect
+       style="opacity:1;fill:#d4aa00;fill-opacity:1;stroke:#d4aa00;stroke-width:0.285719"
+       id="rect22"
+       width="89.761978"
+       height="11.49329"
+       x="50.722065"
+       y="93.350967" />
+  </g>
+  <g
+     inkscape:groupmode="layer"
+     id="layer8"
+     inkscape:label="Layer 1"
+     style="fill:#ffd42a"
+     transform="translate(-50.551298,-93.208108)">
+    <rect
+       style="opacity:1;fill:#ffd42a;fill-opacity:1;stroke:#d4aa00;stroke-width:0.264583"
+       id="rect19"
+       width="89.825371"
+       height="39.6436"
+       x="50.68359"
+       y="100.86536" />
+    <rect
+       style="opacity:1;fill:#fff6d5;fill-opacity:1;stroke:#d4aa00;stroke-width:0.472466"
+       id="rect23"
+       width="89.492027"
+       height="4.3675094"
+       x="50.912987"
+       y="96.644814" />
+  </g>
+  <g
+     inkscape:groupmode="layer"
+     id="layer11"
+     inkscape:label="Layer 3"
+     style="fill:#4d4d4d"
+     transform="translate(-50.551298,-93.208108)" />
+</svg>
