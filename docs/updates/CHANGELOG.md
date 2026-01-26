@@ -11,5 +11,9 @@ This file keep's track of all change's made to the operating system during updat
 
 **Libraries and Helpers:**
 
-- VGA driver with color support
-- STDIO library with helpers
+- Stdio library
+- String library
+
+**Driver's:**
+
+- VGA driver

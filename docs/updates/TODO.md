@@ -4,7 +4,6 @@
 
 ### Library
 
-- Create String library
 - Finish stdio library (integrate string library, etc...)
 
 ### Memory Management
