@@ -58,6 +58,19 @@ This project is open source. See LICENSE file for details.
 - Built with modern OS development best practices
 - Compatible with existing hardware and software standards
 
+## Documentation
+
+Comprehensive documentation for Thuban OS is available in the `docs/` directory. Documentation covers all major subsystems, from low-level drivers to high-level libraries and development tools.
+
+### Core Documentation
+
+- **[Kernel](docs/kernel/)** - Core kernel subsystems including panic handling, memory management, scheduling, and system initialization
+- **[Drivers](docs/drivers/)** - Hardware driver documentation for VGA, PS/2 keyboard, and other device drivers
+- **[Libraries](docs/lib/)** - Standard library documentation including stdio, string manipulation, and utility functions
+- **[Tools](docs/tools/)** - Development tools documentation for Kconfig, Coccinelle, and build system utilities
+
+For questions or issues, please refer to the documentation first. If you can't find what you're looking for, feel free to open an issue on the project repository.
+
 ---
 
 **Thuban** - Building the future of retro computing with modern technology.

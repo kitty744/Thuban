@@ -68,4 +68,11 @@ uint8_t keyboard_get_scancode(void);
 // flush keyboard buffer
 void keyboard_flush(void);
 
+/*
+ * Wait for a keypress via hardware polling
+ * Used by panic/BSOD system when interrupts are disabled
+ * Returns the raw scancode of the pressed key
+ */
+int keyboard_wait_for_keypress(void);
+
 #endif

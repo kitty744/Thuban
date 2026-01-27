@@ -271,6 +271,45 @@ void keyboard_flush(void)
 }
 
 /*
+ * Wait's for a keypress via hardware polling
+ * NOTE: This bypasses the buffer and reads directly from hardware
+ * Used when interrupts are disabled or system is in critical state
+ */
+int keyboard_wait_for_keypress(void)
+{
+    /* Flush hardware buffer first by reading any pending scancodes */
+    while (inb(KB_STATUS_PORT) & 0x01)
+    {
+        inb(KB_DATA_PORT);
+        /* Small delay to let hardware settle */
+        for (volatile int i = 0; i < 1000; i++)
+            ;
+    }
+
+    /* Add additional delay to ensure buffer is truly empty */
+    for (volatile int i = 0; i < 100000; i++)
+        ;
+
+    /* Now wait for a NEW keypress */
+    while (1)
+    {
+        uint8_t status = inb(KB_STATUS_PORT);
+        if (status & 0x01)
+        {
+            /* Key available - read scancode */
+            uint8_t scancode = inb(KB_DATA_PORT);
+
+            /* Only return on key press (not release) */
+            /* Bit 7 set = key release, we want key press */
+            if ((scancode & 0x80) == 0)
+            {
+                return scancode;
+            }
+        }
+    }
+}
+
+/*
  * Driver initialization function
  */
 static int __init keyboard_driver_init(void)

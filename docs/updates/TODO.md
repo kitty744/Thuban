@@ -8,7 +8,6 @@
 
 ### Security
 
-- Create a panic and extract logic to It, (BSOD based.)
 - Create a kernel ring mode, (0 kernel) (3 user mode), with syscall API.
 
 ### Performance

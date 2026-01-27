@@ -4,6 +4,7 @@
  */
 
 #include <thuban/interrupts.h>
+#include <thuban/panic.h>
 #include <thuban/stdio.h>
 #include <thuban/io.h>
 
@@ -42,6 +43,41 @@ static const char *exception_messages[] = {
     "Reserved",
     "Security Exception",
     "Reserved"};
+
+/* Map exception numbers to panic error codes */
+static const uint32_t exception_error_codes[] = {
+    PANIC_GENERAL_FAILURE,       // 0: Division By Zero
+    PANIC_GENERAL_FAILURE,       // 1: Debug
+    PANIC_GENERAL_FAILURE,       // 2: Non Maskable Interrupt
+    PANIC_GENERAL_FAILURE,       // 3: Breakpoint
+    PANIC_GENERAL_FAILURE,       // 4: Overflow
+    PANIC_GENERAL_FAILURE,       // 5: Bound Range Exceeded
+    PANIC_INVALID_OPCODE,        // 6: Invalid Opcode
+    PANIC_GENERAL_FAILURE,       // 7: Device Not Available
+    PANIC_DOUBLE_FAULT,          // 8: Double Fault
+    PANIC_GENERAL_FAILURE,       // 9: Coprocessor Segment Overrun
+    PANIC_GENERAL_FAILURE,       // 10: Invalid TSS
+    PANIC_GENERAL_FAILURE,       // 11: Segment Not Present
+    PANIC_STACK_OVERFLOW,        // 12: Stack-Segment Fault
+    PANIC_KERNEL_MODE_EXCEPTION, // 13: General Protection Fault
+    PANIC_PAGE_FAULT,            // 14: Page Fault
+    PANIC_GENERAL_FAILURE,       // 15: Reserved
+    PANIC_GENERAL_FAILURE,       // 16: x87 Floating-Point Exception
+    PANIC_GENERAL_FAILURE,       // 17: Alignment Check
+    PANIC_GENERAL_FAILURE,       // 18: Machine Check
+    PANIC_GENERAL_FAILURE,       // 19: SIMD Floating-Point Exception
+    PANIC_GENERAL_FAILURE,       // 20: Virtualization Exception
+    PANIC_GENERAL_FAILURE,       // 21-31: Reserved
+    PANIC_GENERAL_FAILURE,
+    PANIC_GENERAL_FAILURE,
+    PANIC_GENERAL_FAILURE,
+    PANIC_GENERAL_FAILURE,
+    PANIC_GENERAL_FAILURE,
+    PANIC_GENERAL_FAILURE,
+    PANIC_GENERAL_FAILURE,
+    PANIC_GENERAL_FAILURE,
+    PANIC_GENERAL_FAILURE,
+    PANIC_GENERAL_FAILURE};
 
 /*
  * Remap's the PIC to avoid conflicts with CPU exceptions
@@ -94,19 +130,11 @@ void isr_handler(struct registers *regs)
 {
     if (regs->int_no < 32)
     {
-        printf("\n[EXCEPTION] %s (interrupt %llu)\n",
-               exception_messages[regs->int_no], regs->int_no);
-        printf("Error code: 0x%llx\n", regs->err_code);
-        printf("RIP: 0x%llx\n", regs->rip);
-        printf("CS: 0x%llx  RFLAGS: 0x%llx\n", regs->cs, regs->rflags);
-        printf("RSP: 0x%llx  SS: 0x%llx\n", regs->rsp, regs->ss);
+        /* CPU exception - trigger panic with BSOD */
+        uint32_t error_code = exception_error_codes[regs->int_no];
+        const char *message = exception_messages[regs->int_no];
 
-        // halt system on exception
-        printf("\nSystem halted\n");
-        while (1)
-        {
-            asm volatile("cli; hlt");
-        }
+        panic_from_exception(regs, error_code, message);
     }
 }
 
