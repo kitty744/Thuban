@@ -10,6 +10,7 @@
 #include <thuban/vga.h>
 #include <thuban/pmm.h>
 #include <thuban/heap.h>
+#include <thuban/module.h>
 #include <thuban/multiboot.h>
 
 #define MAX_COMMAND_LEN 256
@@ -68,6 +69,7 @@ static void cmd_help(int argc, char **argv)
     printf("  clear    - Clear the screen\n");
     printf("  meminfo  - Display memory information\n");
     printf("  sysinfo  - Display system information\n");
+    printf("  drivers  - List all drivers\n");
     printf("  echo     - Echo arguments\n");
     printf("  reboot   - Reboot the system\n");
     printf("  halt     - Halt the system\n");
@@ -125,6 +127,14 @@ static void cmd_sysinfo(int argc, char **argv)
 
     puts("[NAME]: Thuban");
     puts("[VERSION]: 0.2");
+}
+
+static void cmd_drivers(int argc, char **argv)
+{
+    (void)argc;
+    (void)argv;
+
+    module_list();
 }
 
 /*
@@ -214,6 +224,10 @@ static void execute_command(char *cmd)
     else if (strcmp(args[0], "sysinfo") == 0)
     {
         cmd_sysinfo(argc, args);
+    }
+    else if (strcmp(args[0], "drivers") == 0)
+    {
+        cmd_drivers(argc, args);
     }
     else if (strcmp(args[0], "echo") == 0)
     {

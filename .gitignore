@@ -30,6 +30,7 @@ Thumbs.db
 *.pdb
 
 # QEMU files
+ARCHIVE.md
 *.img
 *.config
 *.old
