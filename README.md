@@ -40,23 +40,13 @@ make all
 make clean
 ```
 
-### Build Process
+## Build Process
 
 1. **Assembly**: NASM compiles boot.s with elf32 format
 2. **Compilation**: GCC compiles all C files with kernel flags
 3. **Linking**: LD creates the ELF kernel with proper memory layout
 4. **ISO Creation**: GRUB creates bootable ISO with multiboot2 support
 5. **Testing**: QEMU launches the OS with CD-ROM boot
-
-## License
-
-This project is open source. See LICENSE file for details.
-
-## Acknowledgments
-
-- Inspired by Linux kernel architecture and design patterns
-- Built with modern OS development best practices
-- Compatible with existing hardware and software standards
 
 ## Documentation
 
@@ -72,5 +62,15 @@ Comprehensive documentation for Thuban OS is available in the `docs/` directory.
 For questions or issues, please refer to the documentation first. If you can't find what you're looking for, feel free to open an issue on the project repository.
 
 ---
+
+## License
+
+This project is open source. See LICENSE file for details.
+
+## Acknowledgments
+
+- Inspired by Linux kernel architecture and design patterns
+- Built with modern OS development best practices
+- Compatible with existing hardware and software standards
 
 **Thuban** - Building the future of retro computing with modern technology.
