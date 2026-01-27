@@ -25,7 +25,6 @@ extern initcall_t __initcall_end[];
  */
 void module_init_builtin(void)
 {
-    printf("[MODULE] Initializing built-in drivers\n");
 
     // array of initcall start pointers
     initcall_t *initcall_levels[] = {
@@ -58,8 +57,6 @@ void module_init_builtin(void)
             }
         }
     }
-
-    printf("[MODULE] Built-in initialization complete\n");
 }
 
 /*
