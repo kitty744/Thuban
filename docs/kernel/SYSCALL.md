@@ -470,41 +470,6 @@ System calls return -1 on error. Currently:
 
 ## Integration
 
-### Adding System Calls to Kernel
-
-**Step 1:** Define syscall number in `syscall.h`:
-
-```c
-#define SYS_MYNEWCALL 13
-```
-
-**Step 2:** Implement handler in `syscall.c`:
-
-```c
-static int64_t sys_mynewcall_impl(uint64_t arg1, uint64_t arg2, uint64_t arg3,
-                                  uint64_t arg4, uint64_t arg5, uint64_t arg6) {
-    // Implementation here
-    return 0;
-}
-```
-
-**Step 3:** Register in `syscall_init()`:
-
-```c
-void syscall_init(void) {
-    // ... existing registrations ...
-    syscall_register(SYS_MYNEWCALL, sys_mynewcall_impl);
-}
-```
-
-**Step 4:** Add user-space wrapper in `syscall.h`:
-
-```c
-static inline int64_t sys_mynewcall(uint64_t arg1) {
-    return syscall(SYS_MYNEWCALL, arg1, 0, 0, 0, 0);
-}
-```
-
 ### Using in User Programs
 
 **Include header:**
