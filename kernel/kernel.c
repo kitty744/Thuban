@@ -16,6 +16,7 @@
 #include <thuban/keyboard.h>
 #include <thuban/shell.h>
 #include <thuban/module.h>
+#include <thuban/syscall.h>
 
 /*
  * Entry point method responsible for initializing all kernel systems
@@ -24,13 +25,11 @@
  */
 void kmain(uint32_t multiboot_magic, void *multiboot_addr)
 {
-
     // parse multiboot info
     multiboot_parse(multiboot_magic, multiboot_addr);
     struct multiboot_info *mbi = multiboot_get_info();
 
     // initialize memory management
-
     pmm_init(mbi->total_mem);
     paging_init();
     vmm_init();
@@ -44,6 +43,9 @@ void kmain(uint32_t multiboot_magic, void *multiboot_addr)
     module_init_builtin();
 
     interrupts_enable();
+
+    // initialize syscall subsystem (ready for future user programs)
+    syscall_init();
 
     // launch shell
     shell_init();

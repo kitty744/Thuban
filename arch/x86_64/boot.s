@@ -19,6 +19,7 @@ global start
 global p4_table
 global p3_table
 global p2_table
+global stack_top
 extern kmain
 
 start:

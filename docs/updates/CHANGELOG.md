@@ -40,6 +40,8 @@ This file keep's track of all change's made to the operating system during updat
 
 **Security:**
 
+- Kernel ring mode, (0 kernel) (3 user mode)
+- Syscall API.
 - Panic system (BSOD).
 
 **Tools:**

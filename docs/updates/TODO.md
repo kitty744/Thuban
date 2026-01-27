@@ -8,8 +8,6 @@
 
 ### Security
 
-- Create a kernel ring mode, (0 kernel) (3 user mode), with syscall API.
-
 ### Performance
 
 - Create and implement spinlock's.
