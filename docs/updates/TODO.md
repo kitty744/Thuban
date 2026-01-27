@@ -24,7 +24,6 @@
 
 - Create a cocci config and setup cocci
 - Improve Kconfig with more option's.
-- Seperate into multi file make system
 
 ### Documentation
 
