@@ -14,7 +14,7 @@ KERNEL_ISO = $(BUILD_DIR)/thuban.iso
 
 objs-y := 
 
-subdirs-y := arch/x86_64/ kernel/ mm/ drivers/ lib/
+subdirs-y := arch/ kernel/ mm/ drivers/ lib/
 
 include $(patsubst %,%/Makefile,$(subdirs-y))
 
