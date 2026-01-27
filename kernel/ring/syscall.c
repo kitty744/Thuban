@@ -60,8 +60,6 @@ void syscall_init(void)
     uint64_t efer = rdmsr(0xC0000080);
     efer |= (1 << 0); /* SCE (System Call Extensions) bit */
     wrmsr(0xC0000080, efer);
-
-    printf("[SYSCALL] Initialized with %d syscalls\n", SYSCALL_MAX);
 }
 
 /*
