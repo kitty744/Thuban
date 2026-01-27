@@ -23,7 +23,7 @@ if [ "$CONFIG_AUDIO_ENABLED" = "y" ]; then
 fi
 
 # --- 2. BUILD & RUN ---
-make clean && make all
+make clean && make all || exit 1
 clear
 
 echo "[INFO]: Cleaning and Building Thuban..."

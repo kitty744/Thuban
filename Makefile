@@ -49,7 +49,7 @@ install:
 	@chmod +x ./scripts/install.sh
 	./scripts/install.sh
 
-run: all
+run:
 	@chmod +x ./scripts/run.sh
 	./scripts/run.sh
 
