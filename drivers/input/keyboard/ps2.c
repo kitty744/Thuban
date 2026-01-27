@@ -9,6 +9,7 @@
 #include <thuban/stdio.h>
 #include <thuban/vga.h>
 #include <thuban/module.h>
+#include <thuban/device.h>
 
 MODULE_AUTHOR("Trollycat");
 MODULE_DESCRIPTION("PS/2 Keyboard Driver");
@@ -268,3 +269,14 @@ void keyboard_flush(void)
     kb_buffer_start = 0;
     kb_buffer_end = 0;
 }
+
+/*
+ * Driver initialization function
+ */
+static int __init keyboard_driver_init(void)
+{
+    keyboard_init();
+    return 0;
+}
+
+device_initcall(keyboard_driver_init);

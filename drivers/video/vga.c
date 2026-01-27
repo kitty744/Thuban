@@ -5,6 +5,7 @@
 
 #include <thuban/vga.h>
 #include <thuban/module.h>
+#include <thuban/device.h>
 
 MODULE_AUTHOR("Trollycat");
 MODULE_DESCRIPTION("VGA Driver");
@@ -174,3 +175,14 @@ void vga_scroll_up(void)
         vga_write_cell(' ', current_color, x, VGA_HEIGHT - 1);
     }
 }
+
+/*
+ * Driver initialization function
+ */
+static int __init vga_driver_init(void)
+{
+    vga_init();
+    return 0;
+}
+
+early_initcall(vga_driver_init);

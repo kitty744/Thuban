@@ -2,14 +2,23 @@
 
 ## Version 0.2
 
+### System
+
+- Write assembly code for all arch (x86_64, arm, etc...)
+
 ### Driver API
 
 - Create a device.h that every driver will be a sub-class of
+- Create a module system for pre-loading and built-in's.
 
 ### Security
 
 - Create a panic and extract logic to It, (BSOD based.)
 - Create a kernel ring mode, (0 kernel) (3 user mode), with syscall API.
+
+### Performance
+
+- Create and implement spinlock's.
 
 ### Tools
 
