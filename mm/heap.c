@@ -8,6 +8,7 @@
 #include <thuban/vmm.h>
 #include <thuban/stdio.h>
 #include <thuban/string.h>
+#include <thuban/spinlock.h>
 
 #define HEAP_MAGIC 0x48454150          // "HEAP"
 #define INITIAL_HEAP_SIZE (256 * 1024) // 256KB initial
@@ -26,6 +27,9 @@ static heap_block_t *heap_start = NULL;
 static size_t total_heap_size = 0;
 static size_t used_heap_size = 0;
 
+/* Spinlock to protect heap operations */
+static spinlock_t heap_lock = SPINLOCK_INIT_NAMED("heap");
+
 /*
  * Initialize's the heap
  */
@@ -40,10 +44,13 @@ void heap_init(void)
 
     total_heap_size = INITIAL_HEAP_SIZE;
     used_heap_size = sizeof(heap_block_t);
+
+    spin_lock_init(&heap_lock, "heap");
 }
 
 /*
  * Expand's the heap by allocating more pages
+ * NOTE: Must be called with heap_lock held
  */
 static int expand_heap(size_t needed_size)
 {
@@ -79,6 +86,7 @@ static int expand_heap(size_t needed_size)
 
 /*
  * Coalesce's adjacent free blocks
+ * NOTE: Must be called with heap_lock held
  */
 static void coalesce(heap_block_t *block)
 {
@@ -115,12 +123,15 @@ void *malloc(size_t size)
 
     size = (size + 15) & ~15; // align to 16 bytes
 
+    spin_lock(&heap_lock);
+
     heap_block_t *current = heap_start;
 
     while (current)
     {
         if (current->magic != HEAP_MAGIC)
         {
+            spin_unlock(&heap_lock);
             printf("[HEAP] Corruption detected at 0x%llx\n", (uint64_t)current);
             return NULL;
         }
@@ -149,7 +160,9 @@ void *malloc(size_t size)
             current->free = 0;
             used_heap_size += current->size + sizeof(heap_block_t);
 
-            return (void *)((uint8_t *)current + sizeof(heap_block_t));
+            void *ptr = (void *)((uint8_t *)current + sizeof(heap_block_t));
+            spin_unlock(&heap_lock);
+            return ptr;
         }
 
         current = current->next;
@@ -158,9 +171,11 @@ void *malloc(size_t size)
     // no suitable block found expand heap
     if (!expand_heap(size))
     {
+        spin_unlock(&heap_lock);
         return NULL;
     }
 
+    spin_unlock(&heap_lock);
     return malloc(size);
 }
 
@@ -196,17 +211,23 @@ void *realloc(void *ptr, size_t size)
         return NULL;
     }
 
+    spin_lock(&heap_lock);
+
     heap_block_t *block = (heap_block_t *)((uint8_t *)ptr - sizeof(heap_block_t));
 
     if (block->magic != HEAP_MAGIC)
     {
+        spin_unlock(&heap_lock);
         return NULL;
     }
 
     if (block->size >= size)
     {
+        spin_unlock(&heap_lock);
         return ptr;
     }
+
+    spin_unlock(&heap_lock);
 
     void *new_ptr = malloc(size);
     if (!new_ptr)
@@ -230,16 +251,20 @@ void free(void *ptr)
         return;
     }
 
+    spin_lock(&heap_lock);
+
     heap_block_t *block = (heap_block_t *)((uint8_t *)ptr - sizeof(heap_block_t));
 
     if (block->magic != HEAP_MAGIC)
     {
+        spin_unlock(&heap_lock);
         printf("[HEAP] Invalid free at 0x%llx\n", (uint64_t)ptr);
         return;
     }
 
     if (block->free)
     {
+        spin_unlock(&heap_lock);
         printf("[HEAP] Double free detected at 0x%llx\n", (uint64_t)ptr);
         return;
     }
@@ -248,6 +273,8 @@ void free(void *ptr)
     used_heap_size -= block->size + sizeof(heap_block_t);
 
     coalesce(block);
+
+    spin_unlock(&heap_lock);
 }
 
 /*
@@ -255,7 +282,10 @@ void free(void *ptr)
  */
 uint64_t heap_get_total(void)
 {
-    return total_heap_size;
+    spin_lock(&heap_lock);
+    uint64_t total = total_heap_size;
+    spin_unlock(&heap_lock);
+    return total;
 }
 
 /*
@@ -263,7 +293,10 @@ uint64_t heap_get_total(void)
  */
 uint64_t heap_get_used(void)
 {
-    return used_heap_size;
+    spin_lock(&heap_lock);
+    uint64_t used = used_heap_size;
+    spin_unlock(&heap_lock);
+    return used;
 }
 
 /*
@@ -271,5 +304,8 @@ uint64_t heap_get_used(void)
  */
 uint64_t heap_get_free(void)
 {
-    return total_heap_size - used_heap_size;
+    spin_lock(&heap_lock);
+    uint64_t free = total_heap_size - used_heap_size;
+    spin_unlock(&heap_lock);
+    return free;
 }

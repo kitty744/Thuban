@@ -7,6 +7,7 @@
 #include <thuban/pmm.h>
 #include <thuban/stdio.h>
 #include <thuban/string.h>
+#include <thuban/spinlock.h>
 
 #define BITMAP_SIZE 32768 // supports up to 128MB with 4KB pages
 
@@ -16,8 +17,12 @@ static uint64_t used_pages = 0;
 
 extern uint64_t _kernel_end;
 
+/* Spinlock to protect PMM operations */
+static spinlock_t pmm_lock = SPINLOCK_INIT_NAMED("pmm");
+
 /*
  * Set's a bit in the bitmap
+ * NOTE: Must be called with pmm_lock held
  */
 static inline void bitmap_set(uint64_t bit)
 {
@@ -26,6 +31,7 @@ static inline void bitmap_set(uint64_t bit)
 
 /*
  * Clear's a bit in the bitmap
+ * NOTE: Must be called with pmm_lock held
  */
 static inline void bitmap_clear(uint64_t bit)
 {
@@ -34,6 +40,7 @@ static inline void bitmap_clear(uint64_t bit)
 
 /*
  * Test's if a bit is set
+ * NOTE: Must be called with pmm_lock held
  */
 static inline int bitmap_test(uint64_t bit)
 {
@@ -42,6 +49,7 @@ static inline int bitmap_test(uint64_t bit)
 
 /*
  * Find's first free page
+ * NOTE: Must be called with pmm_lock held
  */
 static uint64_t find_free_page(void)
 {
@@ -57,6 +65,7 @@ static uint64_t find_free_page(void)
 
 /*
  * Find's n contiguous free pages
+ * NOTE: Must be called with pmm_lock held
  */
 static uint64_t find_free_pages(size_t count)
 {
@@ -118,6 +127,8 @@ void pmm_init(uint64_t mem_size)
         bitmap_set(i);
         used_pages++;
     }
+
+    spin_lock_init(&pmm_lock, "pmm");
 }
 
 /*
@@ -125,17 +136,22 @@ void pmm_init(uint64_t mem_size)
  */
 void *pmm_alloc(void)
 {
+    spin_lock(&pmm_lock);
+
     uint64_t page = find_free_page();
 
     if (page == (uint64_t)-1)
     {
+        spin_unlock(&pmm_lock);
         return NULL;
     }
 
     bitmap_set(page);
     used_pages++;
 
-    return (void *)(page * PAGE_SIZE);
+    void *addr = (void *)(page * PAGE_SIZE);
+    spin_unlock(&pmm_lock);
+    return addr;
 }
 
 /*
@@ -153,10 +169,13 @@ void *pmm_alloc_pages(size_t count)
         return pmm_alloc();
     }
 
+    spin_lock(&pmm_lock);
+
     uint64_t start_page = find_free_pages(count);
 
     if (start_page == (uint64_t)-1)
     {
+        spin_unlock(&pmm_lock);
         return NULL;
     }
 
@@ -166,7 +185,9 @@ void *pmm_alloc_pages(size_t count)
         used_pages++;
     }
 
-    return (void *)(start_page * PAGE_SIZE);
+    void *addr = (void *)(start_page * PAGE_SIZE);
+    spin_unlock(&pmm_lock);
+    return addr;
 }
 
 /*
@@ -179,20 +200,26 @@ void pmm_free(void *page)
         return;
     }
 
+    spin_lock(&pmm_lock);
+
     uint64_t page_num = (uint64_t)page / PAGE_SIZE;
 
     if (page_num >= total_pages)
     {
+        spin_unlock(&pmm_lock);
         return;
     }
 
     if (!bitmap_test(page_num))
     {
+        spin_unlock(&pmm_lock);
         return;
     }
 
     bitmap_clear(page_num);
     used_pages--;
+
+    spin_unlock(&pmm_lock);
 }
 
 /*
@@ -211,7 +238,10 @@ void pmm_free_pages(void *page, size_t count)
  */
 uint64_t pmm_get_total_memory(void)
 {
-    return total_pages * PAGE_SIZE;
+    spin_lock(&pmm_lock);
+    uint64_t total = total_pages * PAGE_SIZE;
+    spin_unlock(&pmm_lock);
+    return total;
 }
 
 /*
@@ -219,7 +249,10 @@ uint64_t pmm_get_total_memory(void)
  */
 uint64_t pmm_get_used_memory(void)
 {
-    return used_pages * PAGE_SIZE;
+    spin_lock(&pmm_lock);
+    uint64_t used = used_pages * PAGE_SIZE;
+    spin_unlock(&pmm_lock);
+    return used;
 }
 
 /*
@@ -227,5 +260,8 @@ uint64_t pmm_get_used_memory(void)
  */
 uint64_t pmm_get_free_memory(void)
 {
-    return (total_pages - used_pages) * PAGE_SIZE;
+    spin_lock(&pmm_lock);
+    uint64_t free = (total_pages - used_pages) * PAGE_SIZE;
+    spin_unlock(&pmm_lock);
+    return free;
 }

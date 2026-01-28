@@ -10,6 +10,7 @@
 #include <thuban/vga.h>
 #include <thuban/module.h>
 #include <thuban/device.h>
+#include <thuban/spinlock.h>
 
 MODULE_AUTHOR("Trollycat");
 MODULE_DESCRIPTION("PS/2 Keyboard Driver");
@@ -27,6 +28,9 @@ static uint8_t extended_key = 0;
 static char kb_buffer[KB_BUFFER_SIZE];
 static volatile int kb_buffer_start = 0;
 static volatile int kb_buffer_end = 0;
+
+/* Spinlock to protect keyboard buffer */
+static spinlock_t kb_lock = SPINLOCK_INIT_NAMED("keyboard");
 
 // US QWERTY scancode to ASCII
 static const char scancode_to_ascii[] = {
@@ -46,6 +50,7 @@ static const char scancode_to_ascii_shift[] = {
 
 /*
  * Add's character to keyboard buffer
+ * NOTE: Must be called with kb_lock held (from IRQ handler)
  */
 static void kb_buffer_add(char c)
 {
@@ -60,7 +65,7 @@ static void kb_buffer_add(char c)
 
 /*
  * Handle's special arrow keys and extended keys
- * NOTE: Add special codes to buffer so shell can handle them
+ * NOTE: Must be called with kb_lock held
  */
 static void handle_extended_key(uint8_t scancode)
 {
@@ -93,6 +98,7 @@ static void handle_extended_key(uint8_t scancode)
 
 /*
  * Keyboard IRQ handler
+ * NOTE: Spinlock protects buffer access
  */
 static void keyboard_irq_handler(struct registers *regs)
 {
@@ -100,10 +106,14 @@ static void keyboard_irq_handler(struct registers *regs)
 
     uint8_t scancode = inb(KB_DATA_PORT);
 
+    /* Lock is acquired here to protect buffer and state */
+    spin_lock(&kb_lock);
+
     // check for extended key prefix
     if (scancode == 0xE0)
     {
         extended_key = 1;
+        spin_unlock(&kb_lock);
         return;
     }
 
@@ -127,6 +137,7 @@ static void keyboard_irq_handler(struct registers *regs)
         }
 
         extended_key = 0;
+        spin_unlock(&kb_lock);
         return;
     }
 
@@ -135,6 +146,7 @@ static void keyboard_irq_handler(struct registers *regs)
     {
         handle_extended_key(scancode);
         extended_key = 0;
+        spin_unlock(&kb_lock);
         return;
     }
 
@@ -142,24 +154,28 @@ static void keyboard_irq_handler(struct registers *regs)
     if (scancode == KEY_LSHIFT || scancode == KEY_RSHIFT)
     {
         shift_pressed = 1;
+        spin_unlock(&kb_lock);
         return;
     }
 
     if (scancode == KEY_LCTRL)
     {
         ctrl_pressed = 1;
+        spin_unlock(&kb_lock);
         return;
     }
 
     if (scancode == KEY_LALT)
     {
         alt_pressed = 1;
+        spin_unlock(&kb_lock);
         return;
     }
 
     if (scancode == KEY_CAPSLOCK)
     {
         capslock_active = !capslock_active;
+        spin_unlock(&kb_lock);
         return;
     }
 
@@ -170,6 +186,7 @@ static void keyboard_irq_handler(struct registers *regs)
         scancode == KEY_F9 || scancode == KEY_F10 || scancode == KEY_F11 ||
         scancode == KEY_F12 || scancode == KEY_NUMLOCK || scancode == KEY_SCROLLLOCK)
     {
+        spin_unlock(&kb_lock);
         return;
     }
 
@@ -205,6 +222,8 @@ static void keyboard_irq_handler(struct registers *regs)
             kb_buffer_add(c);
         }
     }
+
+    spin_unlock(&kb_lock);
 }
 
 /*
@@ -212,6 +231,9 @@ static void keyboard_irq_handler(struct registers *regs)
  */
 void keyboard_init(void)
 {
+    // initialize spinlock
+    spin_lock_init(&kb_lock, "keyboard");
+
     // install keyboard IRQ handler
     irq_install_handler(1, keyboard_irq_handler);
 
@@ -230,14 +252,18 @@ void keyboard_init(void)
  */
 int keyboard_getchar(void)
 {
+    spin_lock(&kb_lock);
+
     if (kb_buffer_start == kb_buffer_end)
     {
+        spin_unlock(&kb_lock);
         return -1;
     }
 
     char c = kb_buffer[kb_buffer_start];
     kb_buffer_start = (kb_buffer_start + 1) % KB_BUFFER_SIZE;
 
+    spin_unlock(&kb_lock);
     return c;
 }
 
@@ -246,7 +272,10 @@ int keyboard_getchar(void)
  */
 int keyboard_available(void)
 {
-    return kb_buffer_start != kb_buffer_end;
+    spin_lock(&kb_lock);
+    int available = (kb_buffer_start != kb_buffer_end);
+    spin_unlock(&kb_lock);
+    return available;
 }
 
 /*
@@ -266,14 +295,17 @@ uint8_t keyboard_get_scancode(void)
  */
 void keyboard_flush(void)
 {
+    spin_lock(&kb_lock);
     kb_buffer_start = 0;
     kb_buffer_end = 0;
+    spin_unlock(&kb_lock);
 }
 
 /*
  * Wait's for a keypress via hardware polling
  * NOTE: This bypasses the buffer and reads directly from hardware
  * Used when interrupts are disabled or system is in critical state
+ * Does NOT use spinlock since interrupts are already disabled
  */
 int keyboard_wait_for_keypress(void)
 {

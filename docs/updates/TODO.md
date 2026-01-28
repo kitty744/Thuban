@@ -2,19 +2,8 @@
 
 ## Version 0.2
 
-### System
-
-- Write assembly code for all arch (x86_64, arm, etc...)
-
-### Security
-
-### Performance
-
-- Create and implement spinlock's.
-
 ### Tools
 
-- Create a cocci config and setup cocci
 - Improve Kconfig with more option's.
 
 ### Documentation

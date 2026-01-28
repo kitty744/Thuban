@@ -7,6 +7,7 @@
 #include <thuban/pmm.h>
 #include <thuban/stdio.h>
 #include <thuban/string.h>
+#include <thuban/spinlock.h>
 
 #define KERNEL_VIRT_BASE 0xFFFFFFFF80000000ULL
 #define PAGE_SIZE 4096
@@ -15,8 +16,12 @@ extern uint64_t p4_table;
 
 static uint64_t next_virt_addr = 0xFFFFFFFFC0000000ULL;
 
+/* Spinlock to protect VMM operations */
+static spinlock_t vmm_lock = SPINLOCK_INIT_NAMED("vmm");
+
 /*
  * Get's page table entry
+ * NOTE: Must be called with vmm_lock held
  */
 static uint64_t *get_pte(uint64_t virt, int create)
 {
@@ -80,6 +85,7 @@ static uint64_t *get_pte(uint64_t virt, int create)
  */
 void vmm_init(void)
 {
+    spin_lock_init(&vmm_lock, "vmm");
 }
 
 /*
@@ -87,10 +93,13 @@ void vmm_init(void)
  */
 void vmm_map(uint64_t virt, uint64_t phys, uint64_t flags)
 {
+    spin_lock(&vmm_lock);
+
     uint64_t *pte = get_pte(virt, 1);
 
     if (!pte)
     {
+        spin_unlock(&vmm_lock);
         printf("[VMM] Failed to map 0x%llx\n", virt);
         return;
     }
@@ -98,6 +107,8 @@ void vmm_map(uint64_t virt, uint64_t phys, uint64_t flags)
     *pte = (phys & ~0xFFF) | flags | PAGE_PRESENT;
 
     asm volatile("invlpg (%0)" : : "r"(virt) : "memory");
+
+    spin_unlock(&vmm_lock);
 }
 
 /*
@@ -105,16 +116,21 @@ void vmm_map(uint64_t virt, uint64_t phys, uint64_t flags)
  */
 void vmm_unmap(uint64_t virt)
 {
+    spin_lock(&vmm_lock);
+
     uint64_t *pte = get_pte(virt, 0);
 
     if (!pte)
     {
+        spin_unlock(&vmm_lock);
         return;
     }
 
     *pte = 0;
 
     asm volatile("invlpg (%0)" : : "r"(virt) : "memory");
+
+    spin_unlock(&vmm_lock);
 }
 
 /*
@@ -128,6 +144,8 @@ void *vmm_alloc(size_t pages, uint64_t flags)
         return NULL;
     }
 
+    spin_lock(&vmm_lock);
+
     uint64_t virt_start = next_virt_addr;
 
     for (size_t i = 0; i < pages; i++)
@@ -135,11 +153,22 @@ void *vmm_alloc(size_t pages, uint64_t flags)
         uint64_t virt = next_virt_addr + (i * PAGE_SIZE);
         uint64_t phys_addr = (uint64_t)phys + (i * PAGE_SIZE);
 
-        vmm_map(virt, phys_addr, flags);
+        uint64_t *pte = get_pte(virt, 1);
+        if (!pte)
+        {
+            spin_unlock(&vmm_lock);
+            printf("[VMM] Failed to allocate virtual pages\n");
+            pmm_free_pages(phys, pages);
+            return NULL;
+        }
+
+        *pte = (phys_addr & ~0xFFF) | flags | PAGE_PRESENT;
+        asm volatile("invlpg (%0)" : : "r"(virt) : "memory");
     }
 
     next_virt_addr += pages * PAGE_SIZE;
 
+    spin_unlock(&vmm_lock);
     return (void *)virt_start;
 }
 
@@ -148,18 +177,23 @@ void *vmm_alloc(size_t pages, uint64_t flags)
  */
 void vmm_free(void *virt, size_t pages)
 {
+    spin_lock(&vmm_lock);
+
     for (size_t i = 0; i < pages; i++)
     {
         uint64_t virt_addr = (uint64_t)virt + (i * PAGE_SIZE);
-        uint64_t phys = vmm_get_phys(virt_addr);
+        uint64_t *pte = get_pte(virt_addr, 0);
 
-        if (phys)
+        if (pte && (*pte & PAGE_PRESENT))
         {
+            uint64_t phys = (*pte & ~0xFFF);
             pmm_free((void *)phys);
+            *pte = 0;
+            asm volatile("invlpg (%0)" : : "r"(virt_addr) : "memory");
         }
-
-        vmm_unmap(virt_addr);
     }
+
+    spin_unlock(&vmm_lock);
 }
 
 /*
@@ -167,12 +201,17 @@ void vmm_free(void *virt, size_t pages)
  */
 uint64_t vmm_get_phys(uint64_t virt)
 {
+    spin_lock(&vmm_lock);
+
     uint64_t *pte = get_pte(virt, 0);
 
     if (!pte || !(*pte & PAGE_PRESENT))
     {
+        spin_unlock(&vmm_lock);
         return 0;
     }
 
-    return (*pte & ~0xFFF) | (virt & 0xFFF);
+    uint64_t phys = (*pte & ~0xFFF) | (virt & 0xFFF);
+    spin_unlock(&vmm_lock);
+    return phys;
 }
