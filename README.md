@@ -57,7 +57,7 @@ Comprehensive documentation for Thuban OS is available in the `docs/` directory.
 - **[Kernel](docs/kernel/)** - Core kernel subsystems including panic handling, memory management, scheduling, and system initialization
 - **[Drivers](docs/drivers/)** - Hardware driver documentation for VGA, PS/2 keyboard, and other device drivers
 - **[Libraries](docs/lib/)** - Standard library documentation including stdio, string manipulation, and utility functions
-- **[Tools](docs/tools/)** - Development tools documentation for Kconfig, Coccinelle, and build system utilities
+- **[Tools](docs/tools/)** - Development tools documentation for Kconfig, and build system utilities
 
 For questions or issues, please refer to the documentation first. If you can't find what you're looking for, feel free to open an issue on the project repository.
 
