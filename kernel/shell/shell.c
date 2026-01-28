@@ -126,7 +126,7 @@ static void cmd_sysinfo(int argc, char **argv)
     struct multiboot_info *mbi = multiboot_get_info();
 
     puts("[NAME]: Thuban");
-    puts("[VERSION]: 0.2");
+    puts("[VERSION]: 0.3");
 }
 
 static void cmd_drivers(int argc, char **argv)

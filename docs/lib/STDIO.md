@@ -1,261 +1,587 @@
-# Thuban Standard Library — stdio
+# Standard I/O Library (stdio)
 
-## NAME
+## Overview
 
-stdio — Standard input/output facilities for the Thuban kernel
+The Thuban stdio library provides standard input/output functions for kernel and user-space programs. It includes character I/O, string I/O, and formatted output capabilities similar to standard C libraries.
 
-## SYNOPSIS
+## Table of Contents
 
-    #include <thuban/stdio.h>
-
-## DESCRIPTION
-
-The Thuban `stdio` subsystem provides low-level terminal input and output
-facilities backed by the VGA text-mode driver. This implementation is intended
-for kernel-space use and mirrors familiar C standard library behavior where
-possible.
-
-All output is written directly to VGA memory. Cursor position, scrolling, and
-text wrapping are handled internally by the terminal logic.
-
-Input-related functions are currently **stubbed**.
-
-This implementation is **not thread-safe**.
+1. [Character I/O](#character-io)
+2. [String I/O](#string-io)
+3. [Formatted Output](#formatted-output)
+4. [Terminal Control](#terminal-control)
+5. [Implementation Details](#implementation-details)
 
 ---
 
-## TERMINAL BEHAVIOR
-
-- Fixed-size VGA text buffer (`VGA_WIDTH` × `VGA_HEIGHT`)
-- Automatic line wrapping
-- Automatic vertical scrolling
-- Cursor position tracked internally
-- Tabs are 4-space aligned
-- Backspace clears the previous character
-
----
-
-## BASIC OUTPUT FUNCTIONS
+## Character I/O
 
 ### putchar()
 
-    int putchar(int c);
+```c
+int putchar(int c);
+```
 
-Writes a single character to the terminal.
+**Description:**  
+Writes a single character to the screen using the VGA driver.
 
-#### Special characters
+**Parameters:**
 
-| Character | Behavior |
-|----------|----------|
-| `\n` | Newline (advance row, reset column) |
-| `\r` | Carriage return (column = 0) |
-| `\t` | Tab (aligns to next 4-space boundary) |
-| `\b` | Backspace (erases previous character) |
+- `c`: Character to write (as int)
 
-#### Example
+**Returns:**  
+The character written
 
-    putchar('A');
-    putchar('\n');
+**Special Characters:**
+
+- `\n` - Newline (moves to start of next line)
+- `\r` - Carriage return (moves to start of current line)
+- `\t` - Tab (moves to next 4-character boundary)
+- `\b` - Backspace (moves cursor left one position)
+
+**Example:**
+
+```c
+putchar('A');        // Prints 'A'
+putchar('\n');       // Moves to next line
+putchar('\t');       // Inserts tab
+```
 
 ---
 
 ### putc()
 
-    int putc(int c);
+```c
+int putc(int c);
+```
 
-Wrapper for `putchar()`. Provided for compatibility with standard C naming.
+**Description:**  
+Wrapper for `putchar()`. Provided for compatibility.
 
----
+**Parameters:**
 
-### puts()
+- `c`: Character to write
 
-    int puts(const char *s);
+**Returns:**  
+The character written
 
-Writes a null-terminated string followed by a newline.
+**Example:**
 
-#### Return value
-
-Returns the number of characters written (including the newline).
-Returns `-1` if `s` is `NULL`.
-
-#### Example
-
-    puts("Hello, kernel!");
-
----
-
-## FORMATTED OUTPUT
-
-### printf()
-
-    int printf(const char *format, ...);
-
-Prints formatted output to the terminal. This function supports a subset of
-standard C `printf` formatting and is intended for kernel debugging and logging.
-
-Internally, this function forwards to `vprintf()`.
-
-#### Example
-
-    printf("PID=%d NAME=%s\n", pid, name);
-
----
-
-### vprintf()
-
-    int vprintf(const char *format, va_list args);
-
-Core formatting engine responsible for parsing format strings and printing
-formatted output.
-
-Most users should prefer `printf()`.
-
----
-
-## FORMAT STRING SYNTAX
-
-Formatting begins with `%` and follows this structure:
-
-    %[flags][width][.precision][length]specifier
-
----
-
-### Conversion Specifiers
-
-| Specifier | Description |
-|----------|-------------|
-| `%c` | Character |
-| `%s` | String |
-| `%d`, `%i` | Signed decimal integer |
-| `%u` | Unsigned decimal integer |
-| `%x` | Hexadecimal (lowercase) |
-| `%X` | Hexadecimal (uppercase) |
-| `%o` | Octal |
-| `%p` | Pointer (`0x` + hex value) |
-| `%%` | Literal percent sign |
-
----
-
-### Flags
-
-| Flag | Meaning |
-|------|--------|
-| `-` | Left-align output within field |
-| `0` | Zero-pad numeric output |
-
----
-
-### Width
-
-Specifies the minimum field width.
-
-    printf("%8d", 42);
-
----
-
-### Precision
-
-Introduced with `.` and used for strings or numbers.
-
-    printf("%.5s", "kernel");
-    printf("%.4d", 7);
-
----
-
-### Length Modifiers
-
-| Modifier | Meaning |
-|---------|--------|
-| `l` | long |
-| `ll` | long long |
-| `h`, `hh` | accepted but ignored |
-| `z`, `t` | treated as `long` |
-
----
-
-## POINTER OUTPUT
-
-### %p
-
-Pointers are printed as:
-
-    0xXXXXXXXXXXXXXXXX
-
-Always zero-padded to 16 hexadecimal digits.
-
----
-
-## INPUT FUNCTIONS (UNIMPLEMENTED)
-
-### getc()
-
-    int getc(void);
-
-Reads a single character from input. Currently always returns `-1`.
+```c
+putc('X');  // Same as putchar('X')
+```
 
 ---
 
 ### getchar()
 
-    int getchar(void);
+```c
+int getchar(void);
+```
 
-Wrapper for `getc()`.
+**Description:**  
+Reads a single character from keyboard input. Blocks until a key is pressed.
+
+**Returns:**  
+The character read, or -1 on error
+
+**Example:**
+
+```c
+printf("Press any key: ");
+int c = getchar();
+printf("You pressed: %c\n", c);
+```
+
+**Notes:**
+
+- Uses keyboard driver circular buffer
+- Halts CPU while waiting (energy efficient)
+- Returns immediately if key is already in buffer
+
+---
+
+### getc()
+
+```c
+int getc(void);
+```
+
+**Description:**  
+Wrapper for `getchar()`.
+
+**Returns:**  
+The character read
+
+---
+
+## String I/O
+
+### puts()
+
+```c
+int puts(const char *s);
+```
+
+**Description:**  
+Writes a string to the screen and appends a newline.
+
+**Parameters:**
+
+- `s`: Null-terminated string to print
+
+**Returns:**  
+Number of characters written (including newline), or -1 on error
+
+**Example:**
+
+```c
+puts("Hello, World!");  // Prints "Hello, World!\n"
+```
 
 ---
 
 ### gets()
 
-    char *gets(char *s);
+```c
+char *gets(char *s);
+```
 
-Reads a line of input into `s` until newline. Currently returns `NULL`.
+**Description:**  
+Reads a line from keyboard input until Enter is pressed. Echoes characters as typed.
+
+**Parameters:**
+
+- `s`: Buffer to store input
+
+**Returns:**  
+Pointer to `s`, or NULL on error
+
+**Features:**
+
+- Echoes characters as typed
+- Handles backspace
+- Null-terminates string
+- Stops at Enter key
+
+**Example:**
+
+```c
+char buffer[256];
+printf("Enter name: ");
+gets(buffer);
+printf("Hello, %s!\n", buffer);
+```
+
+**Warning:**  
+No buffer overflow protection. Use `fgets()` instead for safer input.
 
 ---
 
 ### fgets()
 
-    char *fgets(char *s, int size);
+```c
+char *fgets(char *s, int size);
+```
 
-Reads up to `size - 1` characters into `s`. Currently returns `NULL`.
+**Description:**  
+Reads a line from keyboard with buffer size limit. Supports arrow keys for cursor movement.
+
+**Parameters:**
+
+- `s`: Buffer to store input
+- `size`: Maximum characters to read (including null terminator)
+
+**Returns:**  
+Pointer to `s`, or NULL on error
+
+**Features:**
+
+- Buffer overflow protection
+- Arrow key support (left/right)
+- Insert mode editing
+- Backspace support
+- Visual editing feedback
+
+**Example:**
+
+```c
+char buffer[256];
+printf("Enter text: ");
+fgets(buffer, sizeof(buffer));
+printf("You entered: %s\n", buffer);
+```
+
+**Arrow Key Support:**
+
+- **Left Arrow** - Move cursor left
+- **Right Arrow** - Move cursor right
+- **Backspace** - Delete character before cursor
+- **Character** - Insert at cursor position
 
 ---
 
-## STRING OUTPUT FUNCTIONS (UNIMPLEMENTED)
+## Formatted Output
+
+### printf()
+
+```c
+int printf(const char *format, ...);
+```
+
+**Description:**  
+Prints formatted output to the screen.
+
+**Parameters:**
+
+- `format`: Format string with conversion specifiers
+- `...`: Variable arguments matching format specifiers
+
+**Returns:**  
+Number of characters printed
+
+**Format Specifiers:**
+
+| Specifier   | Type         | Description                      |
+| ----------- | ------------ | -------------------------------- |
+| `%d` / `%i` | int          | Signed decimal integer           |
+| `%u`        | unsigned int | Unsigned decimal integer         |
+| `%x`        | unsigned int | Unsigned hexadecimal (lowercase) |
+| `%X`        | unsigned int | Unsigned hexadecimal (uppercase) |
+| `%o`        | unsigned int | Unsigned octal                   |
+| `%s`        | char\*       | String                           |
+| `%c`        | char         | Single character                 |
+| `%p`        | void\*       | Pointer address (hex)            |
+| `%%`        | -            | Literal '%' character            |
+
+**Length Modifiers:**
+
+- `l` - long (e.g., `%ld`)
+- `ll` - long long (e.g., `%lld`)
+- `h` - short (e.g., `%hd`)
+- `hh` - char (e.g., `%hhd`)
+- `z` - size_t (e.g., `%zu`)
+
+**Flags:**
+
+- `-` - Left-align
+- `0` - Zero-pad numbers
+- Width - Minimum field width (e.g., `%5d`)
+- Precision - For strings/floats (e.g., `%.3s`)
+
+**Examples:**
+
+```c
+printf("Number: %d\n", 42);
+printf("Hex: 0x%x\n", 255);
+printf("String: %s\n", "Hello");
+printf("Pointer: %p\n", ptr);
+printf("Padded: %05d\n", 42);        // "00042"
+printf("Width: %10s\n", "Hi");       // "        Hi"
+printf("Left: %-10s\n", "Hi");       // "Hi        "
+printf("Precision: %.3s\n", "Hello"); // "Hel"
+```
+
+---
 
 ### sprintf()
 
-    int sprintf(char *str, const char *format, ...);
+```c
+int sprintf(char *str, const char *format, ...);
+```
 
-Writes formatted output to a string buffer. Currently returns `0`.
+**Description:**  
+Formats output to a string buffer instead of screen.
 
----
+**Parameters:**
 
-### vsprintf()
+- `str`: Destination buffer
+- `format`: Format string
+- `...`: Variable arguments
 
-    int vsprintf(char *str, const char *format, va_list args);
+**Returns:**  
+Number of characters written (excluding null terminator)
 
-`va_list` variant of `sprintf()`.
+**Example:**
+
+```c
+char buffer[100];
+sprintf(buffer, "Value: %d", 42);
+// buffer now contains "Value: 42"
+```
+
+**Warning:**  
+No buffer overflow protection. Use `snprintf()` instead.
 
 ---
 
 ### snprintf()
 
-    int snprintf(char *str, size_t size, const char *format, ...);
+```c
+int snprintf(char *str, size_t size, const char *format, ...);
+```
 
-Size-limited formatted string output. Currently returns `0`.
+**Description:**  
+Formats output to a string buffer with size limit.
+
+**Parameters:**
+
+- `str`: Destination buffer
+- `size`: Maximum bytes to write (including null terminator)
+- `format`: Format string
+- `...`: Variable arguments
+
+**Returns:**  
+Number of characters that would have been written (excluding null)
+
+**Example:**
+
+```c
+char buffer[10];
+int written = snprintf(buffer, sizeof(buffer), "Hello, World!");
+// buffer contains "Hello, Wo" (truncated)
+// written = 13 (full length)
+```
+
+**Notes:**
+
+- Always null-terminates (if size > 0)
+- Returns full length even if truncated
+- Safe against buffer overflows
 
 ---
 
-### vsnprintf()
+### vprintf()
 
-    int vsnprintf(char *str, size_t size, const char *format, va_list args);
+```c
+int vprintf(const char *format, va_list args);
+```
 
-`va_list` variant of `snprintf()`.
+**Description:**  
+Variable argument version of `printf()`. Used internally by `printf()`.
+
+**Parameters:**
+
+- `format`: Format string
+- `args`: Variable argument list
+
+**Returns:**  
+Number of characters printed
+
+**Example:**
+
+```c
+void my_printf(const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    int result = vprintf(fmt, args);
+    va_end(args);
+    return result;
+}
+```
 
 ---
 
-## NOTES
+### vsprintf() / vsnprintf()
 
-- VGA-only output
-- No buffering; output is immediate
-- Designed for kernel debugging and early boot environments
+```c
+int vsprintf(char *str, const char *format, va_list args);
+int vsnprintf(char *str, size_t size, const char *format, va_list args);
+```
 
+**Description:**  
+Variable argument versions of `sprintf()` and `snprintf()`.
+
+**Example:**
+
+```c
+void log_message(const char *fmt, ...) {
+    char buffer[256];
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(buffer, sizeof(buffer), fmt, args);
+    va_end(args);
+    write_to_log(buffer);
+}
+```
+
+---
+
+## Terminal Control
+
+### terminal_reset()
+
+```c
+void terminal_reset(void);
+```
+
+**Description:**  
+Resets terminal cursor to top-left position (0, 0).
+
+**Example:**
+
+```c
+terminal_reset();
+puts("Starting fresh at top-left");
+```
+
+---
+
+## Implementation Details
+
+### VGA Integration
+
+The stdio library interfaces directly with the VGA driver:
+
+```
+printf() → putchar() → vga_write_cell()
+                    ↓
+                vga_set_cursor_pos()
+```
+
+### Character Buffering
+
+**Output:**
+
+- No buffering - characters appear immediately
+- Direct VGA buffer writes
+
+**Input:**
+
+- Keyboard driver provides 256-byte circular buffer
+- `getchar()` reads from buffer
+- Blocks (halts CPU) if buffer empty
+
+### Format String Parsing
+
+Printf implementation uses a state machine:
+
+1. Parse flags (`-`, `0`)
+2. Parse width (`%10d`)
+3. Parse precision (`%.5s`)
+4. Parse length modifier (`l`, `ll`)
+5. Parse conversion specifier (`d`, `s`, etc.)
+6. Format and output
+
+### Memory Usage
+
+- **No heap allocation** during I/O operations
+- Small stack buffers for number conversion (64 bytes)
+- `sprintf` family uses caller-provided buffers
+
+### Thread Safety
+
+**Not thread-safe!** The library assumes single-threaded execution:
+
+- Global terminal position variables
+- No locking around VGA writes
+- Shared format buffers
+
+For multi-threaded kernels, add spinlocks around I/O operations.
+
+---
+
+## Common Patterns
+
+### Error Messages
+
+```c
+printf("[ERROR] Failed to allocate memory\n");
+printf("[WARNING] Low memory: %lu bytes free\n", free_mem);
+```
+
+### Debugging
+
+```c
+#ifdef DEBUG
+printf("[DEBUG] Function %s at line %d\n", __func__, __LINE__);
+printf("[DEBUG] Variable value: %d\n", var);
+#endif
+```
+
+### User Input
+
+```c
+char buffer[256];
+printf("Enter command: ");
+fgets(buffer, sizeof(buffer));
+
+if (strcmp(buffer, "quit\n") == 0) {
+    return;
+}
+```
+
+### Formatting Tables
+
+```c
+printf("%-20s %10s %10s\n", "Name", "Size", "Used");
+printf("%-20s %10lu %10lu\n", "Heap", heap_total, heap_used);
+printf("%-20s %10lu %10lu\n", "Stack", stack_total, stack_used);
+```
+
+---
+
+## Performance Considerations
+
+### Fast Operations
+
+- `putchar()` - Single VGA write
+- `puts()` - Multiple putchar() calls
+- Character I/O - Direct hardware access
+
+### Slow Operations
+
+- `printf()` with many specifiers - Complex parsing
+- `getchar()` - Blocks waiting for input
+- String formatting - Multiple conversions
+
+### Optimization Tips
+
+**Use puts() for simple strings:**
+
+```c
+// Slower:
+printf("Hello\n");
+
+// Faster:
+puts("Hello");
+```
+
+**Avoid repeated formatting:**
+
+```c
+// Slower:
+for (int i = 0; i < 1000; i++) {
+    printf("Iteration %d\n", i);
+}
+
+// Faster:
+char buf[32];
+for (int i = 0; i < 1000; i++) {
+    snprintf(buf, sizeof(buf), "Iteration %d\n", i);
+    puts(buf);
+}
+```
+
+---
+
+## Limitations
+
+1. **No floating-point support** - `%f`, `%e`, `%g` not implemented
+2. **Limited precision** - Maximum 64-character number strings
+3. **No buffering** - Every character written immediately
+4. **No stream support** - Only console I/O (no files)
+5. **Single-threaded** - No locking mechanisms
+6. **ASCII only** - No UTF-8 or Unicode support
+
+---
+
+## See Also
+
+- `STRING.md` - String manipulation functions
+
+---
+
+**Maintainer:** Trollycat  
+**License:** MIT  
+**Last Updated:** January 2026

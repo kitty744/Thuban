@@ -1,12 +1,58 @@
 # Thuban TODO List
 
-## Version 0.2
+## Version 0.3
 
-### Tools
+### Filesystem
 
-- Improve Kconfig with more option's.
+- NTFS
+- EX4
+- FAT32
+- etc...
+
+### Detection
+
+- Implement a PCI(PCIe) bus to scan for hardware and map common code's to brand name's.
+
+### Storage
+
+- ATA
+- SATA
+- ACHI
+- NVme
+
+### CPU
+
+- Implement multi core usage
+
+- ACPI
+- APIC
+- IOAPIC
+- LAPIC
+
+### Safety
+
+- Thread safety
+- Buffering
+- Memory handling.
+
+### Tasks
+
+- Implement multitasking
+
+### Ring mode
+
+- finish ring mode with multitasking support.
+
+### Modules and drivers
+
+- Implement module and driver system, for pre-loading and builtins.
+- NOTE: Need ELF parsing.
+
+### Protection
+
+- Implement spinlocks with multi core
 
 ### Documentation
 
-- Rewrite Documentation for CONTRIBUTING, and other current .md to include better guides.
-- Write the entire docs/ folder, include docs for tool's such as 'kconfig', then also documentation all code such as stdio library', 'mm, etc...
+- Write new documentation on DRIVERS
+- Write new documentation on SPINLOCKS
