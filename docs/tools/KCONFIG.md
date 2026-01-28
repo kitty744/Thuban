@@ -31,6 +31,7 @@ Kconfig is a language used to define configuration options for the kernel. It pr
 ### Why Use Kconfig?
 
 **Benefits:**
+
 - **Modularity** - Enable only features you need
 - **Smaller binaries** - Exclude unused code
 - **Clear dependencies** - Options automatically enable/disable based on requirements
@@ -38,6 +39,7 @@ Kconfig is a language used to define configuration options for the kernel. It pr
 - **Maintainability** - Centralized configuration
 
 **Example:**
+
 ```
 # Instead of editing headers:
 #define ENABLE_VGA_DRIVER 1
@@ -56,16 +58,19 @@ make menuconfig
 ### Installing Tools
 
 **Ubuntu/Debian:**
+
 ```bash
 sudo apt-get install build-essential libncurses-dev bison flex
 ```
 
 **Arch Linux:**
+
 ```bash
 sudo pacman -S base-devel ncurses bison flex
 ```
 
 **macOS:**
+
 ```bash
 brew install ncurses bison flex
 ```
@@ -73,11 +78,13 @@ brew install ncurses bison flex
 ### Basic Usage
 
 **1. Configure kernel:**
+
 ```bash
 make menuconfig
 ```
 
 **2. Navigate menus:**
+
 - **Arrow keys** - Move between options
 - **Enter** - Enter submenu or toggle option
 - **Space** - Toggle option (Y/N/M)
@@ -86,10 +93,12 @@ make menuconfig
 - **Esc** - Go back / Exit
 
 **3. Save configuration:**
+
 - Select "Save" from main menu
 - Press Enter to save to `.config`
 
 **4. Build kernel:**
+
 ```bash
 make clean
 make
@@ -97,12 +106,11 @@ make
 
 ### Configuration Files
 
-| File | Purpose |
-|------|---------|
-| `Kconfig` | Root configuration file |
-| `.config` | Generated configuration (selected options) |
-| `include/generated/autoconf.h` | C header with `#define` macros |
-| `.config.old` | Backup of previous configuration |
+| File          | Purpose                                    |
+| ------------- | ------------------------------------------ |
+| `Kconfig`     | Root configuration file                    |
+| `.config`     | Generated configuration (selected options) |
+| `.config.old` | Backup of previous configuration           |
 
 ---
 
@@ -121,15 +129,16 @@ config OPTION_NAME
 
 ### Entry Types
 
-| Type | Description | Values |
-|------|-------------|--------|
-| `bool` | Boolean option | y (yes), n (no) |
+| Type       | Description        | Values                           |
+| ---------- | ------------------ | -------------------------------- |
+| `bool`     | Boolean option     | y (yes), n (no)                  |
 | `tristate` | Three-state option | y (built-in), m (module), n (no) |
-| `int` | Integer value | Any integer |
-| `hex` | Hexadecimal value | 0x prefix |
-| `string` | String value | Quoted string |
+| `int`      | Integer value      | Any integer                      |
+| `hex`      | Hexadecimal value  | 0x prefix                        |
+| `string`   | String value       | Quoted string                    |
 
 **Examples:**
+
 ```kconfig
 config DEBUG
     bool "Enable debugging"
@@ -191,6 +200,7 @@ endmenu
 ### Menu Organization
 
 **Root Kconfig structure:**
+
 ```kconfig
 mainmenu "Thuban OS Configuration"
 
@@ -222,12 +232,14 @@ config ENABLE_FEATURE
 ```
 
 **Generated macro:**
+
 ```c
 #define CONFIG_ENABLE_FEATURE 1
 // or undefined if disabled
 ```
 
 **Usage in code:**
+
 ```c
 #ifdef CONFIG_ENABLE_FEATURE
     // Feature-specific code
@@ -246,11 +258,13 @@ config BUFFER_SIZE
 ```
 
 **Generated macro:**
+
 ```c
 #define CONFIG_BUFFER_SIZE 4096
 ```
 
 **Usage in code:**
+
 ```c
 char buffer[CONFIG_BUFFER_SIZE];
 ```
@@ -264,11 +278,13 @@ config VERSION_STRING
 ```
 
 **Generated macro:**
+
 ```c
 #define CONFIG_VERSION_STRING "0.2-dev"
 ```
 
 **Usage in code:**
+
 ```c
 printf("Kernel version: %s\n", CONFIG_VERSION_STRING);
 ```
@@ -296,6 +312,7 @@ config ADVANCED_FEATURE
 ```
 
 **Operators:**
+
 - `&&` - AND
 - `||` - OR
 - `!` - NOT
@@ -312,6 +329,7 @@ config FEATURE_A
 **Effect:** Enabling FEATURE_A automatically enables FEATURE_B and FEATURE_C.
 
 **Example:**
+
 ```kconfig
 config VGA_DRIVER
     bool "VGA Driver"
@@ -416,12 +434,14 @@ config NUM_BUFFERS
 ### 1. Clear Naming
 
 **Good:**
+
 ```kconfig
 config VGA_TEXT_MODE
     bool "VGA Text Mode Driver"
 ```
 
 **Bad:**
+
 ```kconfig
 config VGA_DRV
     bool "VGA"
@@ -430,6 +450,7 @@ config VGA_DRV
 ### 2. Comprehensive Help Text
 
 **Good:**
+
 ```kconfig
 config HEAP_DEBUG
     bool "Heap debugging"
@@ -438,12 +459,13 @@ config HEAP_DEBUG
       - Double frees
       - Memory corruption
       - Leaks
-      
+
       Adds ~2KB to kernel size and slight performance overhead.
       Recommended for development builds only.
 ```
 
 **Bad:**
+
 ```kconfig
 config HEAP_DEBUG
     bool "Heap debugging"
@@ -687,6 +709,7 @@ KERNEL_BASE := $(CONFIG_KERNEL_BASE)
 ### "Recursive dependency detected"
 
 **Problem:**
+
 ```kconfig
 config A
     select B
@@ -708,6 +731,7 @@ config B
 **Problem:** `.config` not regenerated.
 
 **Solution:**
+
 ```bash
 make clean
 make menuconfig
@@ -753,6 +777,7 @@ config CUSTOM_OPTION
 ### Common Patterns
 
 **Enable by default:**
+
 ```kconfig
 config FEATURE
     bool "Feature"
@@ -760,6 +785,7 @@ config FEATURE
 ```
 
 **Require another option:**
+
 ```kconfig
 config FEATURE
     bool "Feature"
@@ -767,6 +793,7 @@ config FEATURE
 ```
 
 **Auto-enable dependencies:**
+
 ```kconfig
 config FEATURE
     bool "Feature"
@@ -774,6 +801,7 @@ config FEATURE
 ```
 
 **Mutually exclusive options:**
+
 ```kconfig
 choice
     prompt "Select one"
@@ -790,8 +818,6 @@ endchoice
 
 - [Linux Kconfig Documentation](https://www.kernel.org/doc/html/latest/kbuild/kconfig-language.html)
 - [Kconfig Macro Language](https://www.kernel.org/doc/html/latest/kbuild/kconfig-macro-language.html)
-- `BUILDING.md` - Build system documentation
-- `CONTRIBUTING.md` - Contribution guidelines
 
 ---
 
