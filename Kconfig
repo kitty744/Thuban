@@ -47,6 +47,49 @@ menu "Display & Graphics"
     endchoice
 endmenu
 
+menu "Storage & Disks"
+    config STORAGE_ENABLED
+        bool "Enable Storage Support"
+        default y
+        help
+          Enable block device layer and storage drivers.
+          Required for filesystem access.
+
+    config ATA_DRIVER
+        bool "ATA/IDE Driver (PIO mode)"
+        depends on STORAGE_ENABLED
+        default y
+        help
+          Enable ATA/IDE hard disk driver using PIO mode.
+          Supports up to 4 drives (primary/secondary, master/slave).
+          Required for accessing IDE hard disks in QEMU.
+
+    config DISK_IMAGE
+        string "Disk Image File"
+        depends on STORAGE_ENABLED
+        default "disk.img"
+        help
+          Path to disk image file for QEMU.
+          Will be created automatically if it doesn't exist.
+
+    config DISK_SIZE
+        string "Disk Image Size"
+        depends on STORAGE_ENABLED
+        default "100M"
+        help
+          Size of disk image to create if it doesn't exist.
+          Examples: 100M, 1G, 10G
+
+    config DISK_FORMAT
+        string "Disk Format"
+        depends on STORAGE_ENABLED
+        default "raw"
+        help
+          Disk image format:
+          - raw: Simple, fast, but takes full space
+          - qcow2: Compressed, grows as needed
+endmenu
+
 menu "Audio and Sound"
     config AUDIO_ENABLED
         bool "Enable Audio Hardware"

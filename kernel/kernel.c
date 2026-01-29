@@ -17,6 +17,8 @@
 #include <thuban/shell.h>
 #include <thuban/module.h>
 #include <thuban/syscall.h>
+#include <thuban/blkdev.h>
+#include <thuban/ata_pio.h>
 
 /*
  * Entry point method responsible for initializing all kernel systems
@@ -46,6 +48,12 @@ void kmain(uint32_t multiboot_magic, void *multiboot_addr)
 
     // initialize syscall subsystem (ready for future user programs)
     syscall_init();
+
+    // initialize block device layer
+    blkdev_init();
+
+    // initialize storage drivers
+    ata_pio_init();
 
     // launch shell
     shell_init();

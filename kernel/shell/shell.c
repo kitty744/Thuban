@@ -13,6 +13,7 @@
 #include <thuban/module.h>
 #include <thuban/multiboot.h>
 #include <thuban/panic.h>
+#include <thuban/blkdev.h>
 
 #define MAX_COMMAND_LEN 256
 #define MAX_ARGS 16
@@ -66,14 +67,17 @@ static void cmd_help(int argc, char **argv)
     (void)argv;
 
     printf("Thuban OS Shell - Available Commands:\n");
-    printf("  help     - Display this help message\n");
-    printf("  clear    - Clear the screen\n");
-    printf("  meminfo  - Display memory information\n");
-    printf("  sysinfo  - Display system information\n");
-    printf("  drivers  - List all drivers\n");
-    printf("  echo     - Echo arguments\n");
-    printf("  reboot   - Reboot the system\n");
-    printf("  panic    - Trigger a BSOD\n");
+    printf("  help      - Display this help message\n");
+    printf("  clear     - Clear the screen\n");
+    printf("  meminfo   - Display memory information\n");
+    printf("  sysinfo   - Display system information\n");
+    printf("  drivers   - List all drivers\n");
+    printf("  echo      - Echo arguments\n");
+    printf("  reboot    - Reboot the system\n");
+    printf("  panic     - Trigger a BSOD\n");
+    printf("  lsblk     - List block devices\n");
+    printf("  disktest  - Test disk read\n");
+    printf("  diskwrite - Test disk write\n");
 }
 
 /*
@@ -193,6 +197,127 @@ static void cmd_panic(int argc, char **argv)
 }
 
 /*
+ * Command: lsblk
+ */
+static void cmd_blkdev_list(int argc, char **argv)
+{
+    (void)argc;
+    (void)argv;
+
+    blkdev_list();
+}
+
+/*
+ * Command: disktest
+ */
+static void cmd_disktest(int argc, char **argv)
+{
+    (void)argc;
+    (void)argv;
+
+    struct block_device *dev = blkdev_find("hda");
+    if (!dev)
+    {
+        printf("No disk 'hda' found\n");
+        printf("Available devices:\n");
+        blkdev_list();
+    }
+    else
+    {
+        char buffer[512];
+        printf("Testing disk: %s\n", dev->name);
+        printf("Reading sector 0 (MBR/Boot sector)...\n");
+
+        if (blkdev_read(dev, 0, 1, buffer) < 0)
+        {
+            printf("ERROR: Read failed!\n");
+        }
+        else
+        {
+            printf("SUCCESS! First 64 bytes:\n");
+            for (int i = 0; i < 64; i++)
+            {
+                printf("%02x ", (unsigned char)buffer[i]);
+                if ((i + 1) % 16 == 0)
+                    printf("\n");
+            }
+            printf("\n");
+
+            // Check for boot signature
+            if ((unsigned char)buffer[510] == 0x55 &&
+                (unsigned char)buffer[511] == 0xAA)
+            {
+                printf("Boot signature found: 0x55AA\n");
+            }
+            else
+            {
+                printf("No boot signature (empty disk)\n");
+            }
+        }
+    }
+}
+
+/*
+ * Command: diskwrite
+ */
+static void cmd_diskwrite(int argc, char **argv)
+{
+    (void)argc;
+    (void)argv;
+
+    struct block_device *dev = blkdev_find("hda");
+    if (!dev)
+    {
+        printf("No disk 'hda' found\n");
+    }
+    else
+    {
+        char buffer[512];
+
+        // Fill with test pattern
+        for (int i = 0; i < 512; i++)
+        {
+            buffer[i] = (i % 256);
+        }
+
+        printf("Writing test pattern to sector 1...\n");
+        if (blkdev_write(dev, 1, 1, buffer) < 0)
+        {
+            printf("ERROR: Write failed!\n");
+        }
+        else
+        {
+            // Read it back
+            memset(buffer, 0, 512);
+            if (blkdev_read(dev, 1, 1, buffer) < 0)
+            {
+                printf("ERROR: Read failed!\n");
+            }
+            else
+            {
+                printf("First 32 bytes:\n");
+                for (int i = 0; i < 32; i++)
+                {
+                    printf("%02x ", (unsigned char)buffer[i]);
+                    if ((i + 1) % 16 == 0)
+                        printf("\n");
+                }
+
+                // Verify pattern
+                int errors = 0;
+                for (int i = 0; i < 512; i++)
+                {
+                    if ((unsigned char)buffer[i] != (i % 256))
+                    {
+                        errors++;
+                    }
+                }
+            }
+        }
+    }
+}
+
+/*
  * Execute's a command
  */
 static void execute_command(char *cmd)
@@ -236,6 +361,22 @@ static void execute_command(char *cmd)
     else if (strcmp(args[0], "panic") == 0)
     {
         cmd_panic(argc, args);
+    }
+    else if (strcmp(cmd, "lsblk") == 0)
+    {
+        cmd_blkdev_list(argc, args);
+    }
+
+    // Test disk read
+    else if (strcmp(cmd, "disktest") == 0)
+    {
+        cmd_disktest(argc, args);
+    }
+
+    // Write test pattern to disk
+    else if (strcmp(cmd, "diskwrite") == 0)
+    {
+        cmd_diskwrite(argc, args);
     }
     else
     {

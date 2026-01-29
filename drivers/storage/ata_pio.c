@@ -168,6 +168,9 @@ static int ata_identify(struct ata_device *dev)
     uint16_t io_base = dev->io_base;
     uint16_t control_base = dev->control_base;
 
+    printf("[ATA] Trying to identify device: bus=%d, drive=%d, io=0x%x\n",
+           dev->bus, dev->drive, io_base);
+
     /* Select drive */
     ata_select_drive(io_base, dev->drive);
     ata_delay_400ns(control_base);
@@ -184,9 +187,18 @@ static int ata_identify(struct ata_device *dev)
 
     /* Check if device exists */
     uint8_t status = inb(io_base + ATA_REG_STATUS);
+    printf("[ATA]   Initial status: 0x%02x\n", status);
+
     if (status == 0)
     {
+        printf("[ATA]   No device (status = 0)\n");
         return -1; /* No device */
+    }
+
+    if (status == 0xFF)
+    {
+        printf("[ATA]   Floating bus (status = 0xFF)\n");
+        return -1; /* Floating bus */
     }
 
     /* Wait for BSY to clear */
@@ -417,8 +429,6 @@ static const struct block_device_ops ata_blkdev_ops = {
  */
 void ata_pio_init(void)
 {
-    printf("[ATA] Initializing ATA PIO driver...\n");
-
     /* Initialize device structures */
     memset(ata_devices, 0, sizeof(ata_devices));
 
@@ -472,8 +482,6 @@ void ata_pio_init(void)
             }
         }
     }
-
-    printf("[ATA] ATA PIO initialization complete\n");
 }
 
 /*

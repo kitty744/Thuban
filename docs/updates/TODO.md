@@ -4,26 +4,9 @@
 
 **Goal:** Basic disk I/O and filesystem support
 
-### Block Device Layer
-
-- Generic block device interface
-- block_device structure
-- register_blkdev() / unregister_blkdev()
-- Block I/O request queue
-- Buffer cache
-- Block buffering for performance
-- LRU cache eviction
-- Partition table parsing
-- MBR (Master Boot Record)
-- GPT (GUID Partition Table) - optional
-
 ### Storage Driver
 
-- **Option A: ATA PIO Mode**
-- ATA PIO driver (ISA ports 0x1F0-0x1F7)
-- Read/write sectors
-- Basic error handling
-- **Option B: AHCI**
+- **ACHI**
 - AHCI driver
 - Command list/table setup
 - FIS (Frame Information Structure) handling
