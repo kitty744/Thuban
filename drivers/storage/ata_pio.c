@@ -168,9 +168,6 @@ static int ata_identify(struct ata_device *dev)
     uint16_t io_base = dev->io_base;
     uint16_t control_base = dev->control_base;
 
-    printf("[ATA] Trying to identify device: bus=%d, drive=%d, io=0x%x\n",
-           dev->bus, dev->drive, io_base);
-
     /* Select drive */
     ata_select_drive(io_base, dev->drive);
     ata_delay_400ns(control_base);
@@ -187,17 +184,14 @@ static int ata_identify(struct ata_device *dev)
 
     /* Check if device exists */
     uint8_t status = inb(io_base + ATA_REG_STATUS);
-    printf("[ATA]   Initial status: 0x%02x\n", status);
 
     if (status == 0)
     {
-        printf("[ATA]   No device (status = 0)\n");
         return -1; /* No device */
     }
 
     if (status == 0xFF)
     {
-        printf("[ATA]   Floating bus (status = 0xFF)\n");
         return -1; /* Floating bus */
     }
 
@@ -265,7 +259,6 @@ static int ata_read_lba28(struct ata_device *dev, uint32_t lba,
     if (ata_wait_ready(io_base, 1000) != 0)
     {
         spin_unlock(&dev->lock);
-        printf("[ATA] Timeout waiting for ready\n");
         return -1;
     }
 
@@ -293,7 +286,6 @@ static int ata_read_lba28(struct ata_device *dev, uint32_t lba,
         if (ata_wait_drq(io_base, 1000) != 0)
         {
             spin_unlock(&dev->lock);
-            printf("[ATA] Timeout waiting for DRQ\n");
             return -1;
         }
 
@@ -453,15 +445,6 @@ void ata_pio_init(void)
             if (ata_identify(dev) == 0)
             {
                 dev->exists = 1;
-
-                printf("[ATA] Found %s on %s bus, %s drive\n",
-                       dev->model,
-                       (bus == 0) ? "primary" : "secondary",
-                       (drive == 0) ? "master" : "slave");
-                printf("[ATA]   Serial: %s, Firmware: %s\n",
-                       dev->serial, dev->firmware);
-                printf("[ATA]   Capacity: %llu sectors (%llu MB)\n",
-                       dev->sectors, (dev->sectors * 512) / (1024 * 1024));
 
                 /* Register as block device */
                 const char *names[] = {"hda", "hdb", "hdc", "hdd"};

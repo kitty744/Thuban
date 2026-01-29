@@ -234,7 +234,6 @@ static void cmd_disktest(int argc, char **argv)
         }
         else
         {
-            printf("SUCCESS! First 64 bytes:\n");
             for (int i = 0; i < 64; i++)
             {
                 printf("%02x ", (unsigned char)buffer[i]);
@@ -280,7 +279,6 @@ static void cmd_diskwrite(int argc, char **argv)
             buffer[i] = (i % 256);
         }
 
-        printf("Writing test pattern to sector 1...\n");
         if (blkdev_write(dev, 1, 1, buffer) < 0)
         {
             printf("ERROR: Write failed!\n");
@@ -295,7 +293,6 @@ static void cmd_diskwrite(int argc, char **argv)
             }
             else
             {
-                printf("First 32 bytes:\n");
                 for (int i = 0; i < 32; i++)
                 {
                     printf("%02x ", (unsigned char)buffer[i]);
