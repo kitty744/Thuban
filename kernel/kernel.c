@@ -40,8 +40,8 @@ void kmain(uint32_t multiboot_magic, void *multiboot_addr)
     idt_init();
     interrupts_init();
 
+    // initalize module's
     module_init_builtin();
-
     interrupts_enable();
 
     // initialize syscall subsystem (ready for future user programs)

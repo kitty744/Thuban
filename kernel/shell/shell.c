@@ -12,6 +12,7 @@
 #include <thuban/heap.h>
 #include <thuban/module.h>
 #include <thuban/multiboot.h>
+#include <thuban/panic.h>
 
 #define MAX_COMMAND_LEN 256
 #define MAX_ARGS 16
@@ -72,7 +73,7 @@ static void cmd_help(int argc, char **argv)
     printf("  drivers  - List all drivers\n");
     printf("  echo     - Echo arguments\n");
     printf("  reboot   - Reboot the system\n");
-    printf("  halt     - Halt the system\n");
+    printf("  panic    - Trigger a BSOD\n");
 }
 
 /*
@@ -181,19 +182,14 @@ static void cmd_reboot(int argc, char **argv)
 }
 
 /*
- * Command: halt
+ * Command: panic
  */
-static void cmd_halt(int argc, char **argv)
+static void cmd_panic(int argc, char **argv)
 {
     (void)argc;
     (void)argv;
 
-    printf("System halted\n");
-
-    while (1)
-    {
-        asm volatile("cli; hlt");
-    }
+    panic(PANIC_MANUALLY_INITIATED_CRASH, "Panic command executed.");
 }
 
 /*
@@ -237,14 +233,13 @@ static void execute_command(char *cmd)
     {
         cmd_reboot(argc, args);
     }
-    else if (strcmp(args[0], "halt") == 0)
+    else if (strcmp(args[0], "panic") == 0)
     {
-        cmd_halt(argc, args);
+        cmd_panic(argc, args);
     }
     else
     {
         printf("Unknown command: %s\n", args[0]);
-        printf("Type 'help' for available commands\n");
     }
 }
 
