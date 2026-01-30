@@ -4,13 +4,6 @@
 
 **Goal:** Basic disk I/O and filesystem support
 
-### Storage Driver
-
-- **ACHI**
-- AHCI driver
-- Command list/table setup
-- FIS (Frame Information Structure) handling
-
 ### Virtual Filesystem (VFS)
 
 - VFS architecture

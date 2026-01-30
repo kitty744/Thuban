@@ -22,7 +22,7 @@ if [ "$CONFIG_AUDIO_ENABLED" = "y" ]; then
     Q_AUDIO="-machine $Q_ARCH,pcspk-audiodev=audio0 -audiodev sdl,id=audio0 -soundhw ${CONFIG_SOUNDHW:-pcspk}"
 fi
 
-# Handle Storage logic (BEFORE make clean!)
+# Handle Storage logic
 Q_STORAGE=""
 DISK_IMG=$(echo ${CONFIG_DISK_IMAGE:-disk.img} | tr -d '"')
 DISK_SIZE=$(echo ${CONFIG_DISK_SIZE:-100M} | tr -d '"')
