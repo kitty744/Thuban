@@ -215,29 +215,34 @@ static int ata_identify(struct ata_device *dev)
         return -1; /* Timeout */
     }
 
-    /* Read identification data */
-    struct ata_identify identify;
-    ata_read_buffer(io_base, (uint16_t *)&identify, 256);
+    /* Use a union to fix the alignment warning for good */
+    union
+    {
+        struct ata_identify info;
+        uint16_t raw[256];
+    } identify_res;
 
-    /* Extract information */
-    memcpy(dev->model, identify.model, 40);
+    /* Read directly into the union's array */
+    ata_read_buffer(io_base, identify_res.raw, 256);
+
+    /* Extract information from the union's struct member */
+    memcpy(dev->model, identify_res.info.model, 40);
     ata_fix_string(dev->model, 40);
 
-    memcpy(dev->serial, identify.serial, 20);
+    memcpy(dev->serial, identify_res.info.serial, 20);
     ata_fix_string(dev->serial, 20);
 
-    memcpy(dev->firmware, identify.firmware, 8);
+    memcpy(dev->firmware, identify_res.info.firmware, 8);
     ata_fix_string(dev->firmware, 8);
 
-    /* Get sector count */
-    if (identify.lba48_sectors > 0)
+    if (identify_res.info.lba48_sectors > 0)
     {
-        dev->sectors = identify.lba48_sectors;
+        dev->sectors = identify_res.info.lba48_sectors;
         dev->lba48 = 1;
     }
     else
     {
-        dev->sectors = identify.lba28_sectors;
+        dev->sectors = identify_res.info.lba28_sectors;
         dev->lba48 = 0;
     }
 

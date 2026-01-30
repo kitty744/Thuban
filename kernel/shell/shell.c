@@ -225,8 +225,6 @@ static void cmd_disktest(int argc, char **argv)
     else
     {
         char buffer[512];
-        printf("Testing disk: %s\n", dev->name);
-        printf("Reading sector 0 (MBR/Boot sector)...\n");
 
         if (blkdev_read(dev, 0, 1, buffer) < 0)
         {

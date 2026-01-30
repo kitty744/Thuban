@@ -88,7 +88,7 @@ struct ata_identify
     uint16_t reserved6[38];
     uint64_t lba48_sectors; /* Words 100-103: LBA48 total sectors */
     uint16_t reserved7[152];
-};
+} __attribute__((packed));
 
 /*
  * Initialize ATA PIO driver
@@ -128,4 +128,4 @@ int ata_pio_read(uint8_t bus, uint8_t drive, uint64_t lba,
 int ata_pio_write(uint8_t bus, uint8_t drive, uint64_t lba,
                   uint32_t count, const void *buffer);
 
-#endif /* THUBAN_ATA_PIO_H */
+#endif

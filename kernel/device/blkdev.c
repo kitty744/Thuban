@@ -81,9 +81,6 @@ int blkdev_register(struct block_device *dev)
 
     spin_unlock(&blkdev_lock);
 
-    printf("[BLKDEV] Registered %s: %llu sectors (%llu MB)\n",
-           dev->name, dev->total_sectors, blkdev_size_mb(dev));
-
     return 0;
 }
 

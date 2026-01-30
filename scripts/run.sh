@@ -6,7 +6,7 @@
 # If .config exists, Make will have exported these. If not, we use defaults.
 Q_MEM=$(echo ${CONFIG_MEM_SIZE:-2G} | tr -d '"')
 Q_SMP=$(echo ${CONFIG_CPU_CORES:-5} | tr -d '"')
-Q_ARCH=$(echo ${CONFIG_MACHINE_TYPE:-q35} | tr -d '"')
+Q_ARCH=$(echo ${CONFIG_MACHINE_TYPE:-pc} | tr -d '"')
 Q_CPU=$(echo ${CONFIG_CPU_TYPE:-qemu64} | tr -d '"')
 Q_DEBUG=$(echo ${CONFIG_DEBUG_FLAGS:-guest_errors} | tr -d '"')
 
