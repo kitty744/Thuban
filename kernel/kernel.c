@@ -3,8 +3,6 @@
  * Main file containing kernel entry point
  */
 
-#include <thuban/vga.h>
-#include <thuban/stdio.h>
 #include <thuban/multiboot.h>
 #include <thuban/pmm.h>
 #include <thuban/vmm.h>
@@ -13,12 +11,13 @@
 #include <thuban/gdt.h>
 #include <thuban/idt.h>
 #include <thuban/interrupts.h>
-#include <thuban/keyboard.h>
 #include <thuban/shell.h>
 #include <thuban/module.h>
 #include <thuban/syscall.h>
 #include <thuban/blkdev.h>
-#include <thuban/ata_pio.h>
+#include <thuban/fat32.h>
+#include <thuban/stdio.h>
+#include <thuban/vfs.h>
 
 /*
  * Entry point method responsible for initializing all kernel systems
@@ -51,6 +50,20 @@ void kmain(uint32_t multiboot_magic, void *multiboot_addr)
 
     // initialize syscall subsystem (ready for future user programs)
     syscall_init();
+
+    vfs_init();
+    fat32_init();
+
+    printf("[KERNEL] Attempting to mount root filesystem...\n");
+    if (vfs_mount("hda", "/", "fat32", 0) == 0)
+    {
+        printf("[KERNEL] Root filesystem mounted successfully\n");
+    }
+    else
+    {
+        printf("[KERNEL] Warning: Failed to mount root filesystem\n");
+        printf("[KERNEL] You can manually mount with: mount hda / fat32\n");
+    }
 
     // launch shell
     shell_init();
