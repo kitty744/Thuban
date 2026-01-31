@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2026 Trollycat
- * FAT32 Filesystem Driver Implementation
+ * FAT32 Filesystem Implementation
  */
 
 #include <thuban/fat32.h>
