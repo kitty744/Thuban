@@ -1,58 +1,5 @@
 # Thuban OS - Development Roadmap
 
-## Version 0.3.0
-
-**Goal:** Basic disk I/O and filesystem support
-
-### Virtual Filesystem (VFS)
-
-- VFS architecture
-- inode structure
-- dentry (directory entry) cache
-- file structure
-- superblock structure
-- File operations
-- open(), close(), read(), write()
-- lseek(), stat()
-- Directory operations
-- readdir(), mkdir(), rmdir()
-- Path resolution
-- Absolute paths (/path/to/file)
-- Relative paths (./file, ../file)
-- Symbolic links (optional)
-
-### Filesystem Implementation
-
-- **FAT32:** (Real disk filesystem)
-- FAT32 structures (boot sector, FAT, clusters)
-- Read files from FAT32 partition
-- Write support
-
-### Extended Syscalls
-
-- File I/O syscalls
-- sys_open (3)
-- sys_close (4)
-- sys_lseek (8)
-- sys_stat (4)
-- sys_fstat (5)
-- Directory syscalls
-- sys_mkdir (83)
-- sys_rmdir (84)
-- sys_getdents (78)
-
-### Testing & Integration
-
-- Shell commands for filesystem
-- ls - list directory
-- cat - display file contents
-- mkdir - create directory
-- rm - remove file
-- Test file creation/deletion
-- Test directory traversal
-
----
-
 ## Version 0.3.1
 
 **Goal:** Load and execute user programs
@@ -239,10 +186,8 @@
 
 ### Driver Framework Integration
 
-- Convert static drivers to modules
-- VGA driver as module
-- Keyboard driver as module
-- Future drivers as modules
+We will have 2 type's, 'builtin' which will be called, and 'module's' which will be called whenever wanted and can be removed / added upon runtime, no need for reboot.
+Usually, less important driver's 'like an RGB driver' are modules, this way we can remove them and clear up resources and only add when needed.
 
 ---
 

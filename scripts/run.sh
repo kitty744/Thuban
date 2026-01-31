@@ -25,20 +25,11 @@ fi
 # Handle Storage logic
 Q_STORAGE=""
 DISK_IMG=$(echo ${CONFIG_DISK_IMAGE:-disk.img} | tr -d '"')
-DISK_SIZE=$(echo ${CONFIG_DISK_SIZE:-100M} | tr -d '"')
 DISK_FMT=$(echo ${CONFIG_DISK_FORMAT:-raw} | tr -d '"')
 
-# Create disk image if it doesn't exist
-if [ ! -f "$DISK_IMG" ]; then
-    qemu-img create -f $DISK_FMT "$DISK_IMG" $DISK_SIZE
-    if [ $? -ne 0 ]; then
-        exit 1
-    fi
-fi
-
-# Add disk to QEMU command
-# Using -hda for IDE/ATA compatibility (primary master)
-Q_STORAGE="-hda $DISK_IMG"
+# Disk image should be created by Makefile
+# Just add it to QEMU command
+Q_STORAGE="-drive file=$DISK_IMG,format=$DISK_FMT,index=0,media=disk"
 
 # --- 2. BUILD & RUN ---
 make clean && make all || exit 1
@@ -52,6 +43,7 @@ qemu-system-x86_64 \
     -vga $Q_VGA \
     -d $Q_DEBUG \
     -serial stdio \
+    -boot d \
     -cdrom build/thuban.iso \
     $Q_STORAGE \
     $Q_AUDIO \

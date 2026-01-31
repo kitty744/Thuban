@@ -512,7 +512,7 @@ static int __init ata_pio_driver_init(void)
     return 0;
 }
 
-device_initcall(ata_pio_driver_init);
+core_initcall(ata_pio_driver_init);
 
 MODULE_AUTHOR("Trollycat");
 MODULE_DESCRIPTION("ATA PIO driver.");

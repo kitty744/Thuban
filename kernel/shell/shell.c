@@ -14,11 +14,21 @@
 #include <thuban/multiboot.h>
 #include <thuban/panic.h>
 #include <thuban/blkdev.h>
+#include <thuban/vfs.h>
 
 #define MAX_COMMAND_LEN 256
 #define MAX_ARGS 16
 
 static char command_buffer[MAX_COMMAND_LEN];
+
+/* Forward declarations for VFS commands */
+static void cmd_mount(int argc, char **argv);
+static void cmd_ls(int argc, char **argv);
+static void cmd_cat(int argc, char **argv);
+static void cmd_mkdir(int argc, char **argv);
+static void cmd_touch(int argc, char **argv);
+static void cmd_write(int argc, char **argv);
+static void cmd_rm(int argc, char **argv);
 
 /*
  * Split's command into arguments
@@ -78,6 +88,13 @@ static void cmd_help(int argc, char **argv)
     printf("  lsblk     - List block devices\n");
     printf("  disktest  - Test disk read\n");
     printf("  diskwrite - Test disk write\n");
+    printf("  mount     - Mount a filesystem\n");
+    printf("  ls        - List directory contents\n");
+    printf("  cat       - Display file contents\n");
+    printf("  mkdir     - Create directory\n");
+    printf("  touch     - Create empty file\n");
+    printf("  write     - Write text to file\n");
+    printf("  rm        - Remove file\n");
 }
 
 /*
@@ -131,7 +148,7 @@ static void cmd_sysinfo(int argc, char **argv)
     struct multiboot_info *mbi = multiboot_get_info();
 
     puts("[NAME]: Thuban");
-    puts("[VERSION]: 0.3");
+    puts("[VERSION]: 0.3.0");
 }
 
 static void cmd_drivers(int argc, char **argv)
@@ -248,7 +265,7 @@ static void cmd_disktest(int argc, char **argv)
             }
             else
             {
-                printf("No boot signature (empty disk)\n");
+                printf("No boot signature (FAT32 filesystem)\n");
             }
         }
     }
@@ -313,6 +330,203 @@ static void cmd_diskwrite(int argc, char **argv)
 }
 
 /*
+ * VFS/Filesystem Commands
+ */
+
+/*
+ * Command: mount
+ */
+static void cmd_mount(int argc, char **argv)
+{
+    if (argc < 4)
+    {
+        printf("Usage: mount <device> <mountpoint> <fstype>\n");
+        printf("Example: mount hda / fat32\n");
+        return;
+    }
+
+    const char *device = argv[1];
+    const char *mountpoint = argv[2];
+    const char *fstype = argv[3];
+
+    if (vfs_mount(device, mountpoint, fstype, 0) == 0)
+    {
+        printf("Mounted %s on %s (type: %s)\n", device, mountpoint, fstype);
+    }
+    else
+    {
+        printf("Failed to mount %s\n", device);
+    }
+}
+
+/*
+ * Command: ls
+ */
+static void cmd_ls(int argc, char **argv)
+{
+    const char *path = (argc >= 2) ? argv[1] : "/";
+
+    int fd = vfs_open(path, O_RDONLY | O_DIRECTORY, 0);
+    if (fd < 0)
+    {
+        printf("ls: cannot access '%s': No such file or directory\n", path);
+        return;
+    }
+
+    struct dirent dirents[16];
+    int count;
+
+    printf("Directory listing of %s:\n", path);
+
+    while ((count = vfs_readdir(fd, dirents, 16)) > 0)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            char type = (dirents[i].d_type == VFS_DIRECTORY) ? 'd' : 'f';
+            printf("  [%c] %s\n", type, dirents[i].d_name);
+        }
+    }
+
+    vfs_close(fd);
+}
+
+/*
+ * Command: cat
+ */
+static void cmd_cat(int argc, char **argv)
+{
+    if (argc < 2)
+    {
+        printf("Usage: cat <filename>\n");
+        return;
+    }
+
+    const char *filename = argv[1];
+
+    int fd = vfs_open(filename, O_RDONLY, 0);
+    if (fd < 0)
+    {
+        printf("cat: cannot open '%s': No such file or directory\n", filename);
+        return;
+    }
+
+    char buffer[512];
+    ssize_t bytes_read;
+
+    while ((bytes_read = vfs_read(fd, buffer, sizeof(buffer) - 1)) > 0)
+    {
+        buffer[bytes_read] = '\0';
+        printf("%s", buffer);
+    }
+
+    vfs_close(fd);
+}
+
+/*
+ * Command: mkdir
+ */
+static void cmd_mkdir(int argc, char **argv)
+{
+    if (argc < 2)
+    {
+        printf("Usage: mkdir <dirname>\n");
+        return;
+    }
+
+    const char *dirname = argv[1];
+
+    if (vfs_mkdir(dirname, 0755) == 0)
+    {
+        printf("Directory '%s' created\n", dirname);
+    }
+    else
+    {
+        printf("mkdir: cannot create directory '%s'\n", dirname);
+    }
+}
+
+/*
+ * Command: touch
+ */
+static void cmd_touch(int argc, char **argv)
+{
+    if (argc < 2)
+    {
+        printf("Usage: touch <filename>\n");
+        return;
+    }
+
+    const char *filename = argv[1];
+
+    int fd = vfs_open(filename, O_CREAT | O_WRONLY, 0644);
+    if (fd < 0)
+    {
+        printf("touch: cannot create '%s'\n", filename);
+        return;
+    }
+
+    vfs_close(fd);
+    printf("File '%s' created\n", filename);
+}
+
+/*
+ * Command: write
+ */
+static void cmd_write(int argc, char **argv)
+{
+    if (argc < 3)
+    {
+        printf("Usage: write <filename> <text>\n");
+        return;
+    }
+
+    const char *filename = argv[1];
+    const char *text = argv[2];
+
+    int fd = vfs_open(filename, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    if (fd < 0)
+    {
+        printf("write: cannot open '%s'\n", filename);
+        return;
+    }
+
+    ssize_t written = vfs_write(fd, text, strlen(text));
+    if (written > 0)
+    {
+        printf("Wrote %d bytes to '%s'\n", (int)written, filename);
+    }
+    else
+    {
+        printf("write: failed to write to '%s'\n", filename);
+    }
+
+    vfs_close(fd);
+}
+
+/*
+ * Command: rm
+ */
+static void cmd_rm(int argc, char **argv)
+{
+    if (argc < 2)
+    {
+        printf("Usage: rm <filename>\n");
+        return;
+    }
+
+    const char *filename = argv[1];
+
+    if (vfs_unlink(filename) == 0)
+    {
+        printf("File '%s' removed\n", filename);
+    }
+    else
+    {
+        printf("rm: cannot remove '%s'\n", filename);
+    }
+}
+
+/*
  * Execute's a command
  */
 static void execute_command(char *cmd)
@@ -325,6 +539,7 @@ static void execute_command(char *cmd)
         return;
     }
 
+    // System commands
     if (strcmp(args[0], "help") == 0)
     {
         cmd_help(argc, args);
@@ -357,25 +572,52 @@ static void execute_command(char *cmd)
     {
         cmd_panic(argc, args);
     }
-    else if (strcmp(cmd, "lsblk") == 0)
+    // Storage commands
+    else if (strcmp(args[0], "lsblk") == 0)
     {
         cmd_blkdev_list(argc, args);
     }
-
-    // Test disk read
-    else if (strcmp(cmd, "disktest") == 0)
+    else if (strcmp(args[0], "disktest") == 0)
     {
         cmd_disktest(argc, args);
     }
-
-    // Write test pattern to disk
-    else if (strcmp(cmd, "diskwrite") == 0)
+    else if (strcmp(args[0], "diskwrite") == 0)
     {
         cmd_diskwrite(argc, args);
+    }
+    // Filesystem commands
+    else if (strcmp(args[0], "mount") == 0)
+    {
+        cmd_mount(argc, args);
+    }
+    else if (strcmp(args[0], "ls") == 0)
+    {
+        cmd_ls(argc, args);
+    }
+    else if (strcmp(args[0], "cat") == 0)
+    {
+        cmd_cat(argc, args);
+    }
+    else if (strcmp(args[0], "mkdir") == 0)
+    {
+        cmd_mkdir(argc, args);
+    }
+    else if (strcmp(args[0], "touch") == 0)
+    {
+        cmd_touch(argc, args);
+    }
+    else if (strcmp(args[0], "write") == 0)
+    {
+        cmd_write(argc, args);
+    }
+    else if (strcmp(args[0], "rm") == 0)
+    {
+        cmd_rm(argc, args);
     }
     else
     {
         printf("Unknown command: %s\n", args[0]);
+        printf("Type 'help' for available commands\n");
     }
 }
 
@@ -385,7 +627,7 @@ static void execute_command(char *cmd)
 void shell_init(void)
 {
     vga_set_color(COLOR_LIGHT_CYAN, COLOR_BLACK);
-    printf("\nWelcome to Thuban OS Shell\n");
+    printf("\nWelcome to Thuban OS v0.3.0\n");
     printf("Type 'help' for available commands\n\n");
     vga_set_color(COLOR_WHITE, COLOR_BLACK);
 }

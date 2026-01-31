@@ -10,7 +10,12 @@ BUILD_DIR = build
 KERNEL_BIN = $(BUILD_DIR)/thuban.bin
 KERNEL_ISO = $(BUILD_DIR)/thuban.iso
 
+# Disk image settings (read from .config if exists)
 -include .config
+
+DISK_IMAGE ?= disk.img
+DISK_SIZE ?= 100M
+DISK_FORMAT ?= raw
 
 objs-y := 
 
@@ -22,7 +27,12 @@ KERNEL_OBJS = $(addprefix $(BUILD_DIR)/,$(objs-y))
 
 all: $(KERNEL_ISO)
 
-$(KERNEL_ISO): $(KERNEL_BIN)
+# Create disk image if it doesn't exist
+$(DISK_IMAGE):
+	@qemu-img create -f $(DISK_FORMAT) $(DISK_IMAGE) $(DISK_SIZE)
+	@mkfs.vfat -F 32 $(DISK_IMAGE)
+
+$(KERNEL_ISO): $(KERNEL_BIN) $(DISK_IMAGE)
 	@mkdir -p $(BUILD_DIR)/isofiles/boot/grub
 	cp $(KERNEL_BIN) $(BUILD_DIR)/isofiles/boot/thuban.bin
 	echo 'set timeout=0' > $(BUILD_DIR)/isofiles/boot/grub/grub.cfg
@@ -58,5 +68,4 @@ menuconfig:
 
 clean:
 	rm -rf $(BUILD_DIR)
-
 .PHONY: all clean install run menuconfig

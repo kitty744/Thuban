@@ -27,8 +27,6 @@ void vfs_init(void)
     mount_list = NULL;
     fs_list = NULL;
     current_working_dir = NULL;
-
-    printf("[VFS] Virtual filesystem initialized\n");
 }
 
 int vfs_register_filesystem(vfs_filesystem_t *fs)
@@ -56,7 +54,6 @@ int vfs_register_filesystem(vfs_filesystem_t *fs)
 
     spin_unlock(&vfs_lock);
 
-    printf("[VFS] Registered filesystem: %s\n", fs->name);
     return 0;
 }
 
@@ -71,7 +68,6 @@ int vfs_unregister_filesystem(const char *name)
         {
             *curr = (*curr)->next;
             spin_unlock(&vfs_lock);
-            printf("[VFS] Unregistered filesystem: %s\n", name);
             return 0;
         }
         curr = &(*curr)->next;
@@ -97,6 +93,7 @@ static vfs_filesystem_t *vfs_find_filesystem(const char *name)
 
 int vfs_mount(const char *dev, const char *mountpoint, const char *fstype, uint32_t flags)
 {
+
     if (!dev || !mountpoint || !fstype)
     {
         return -1;
@@ -105,14 +102,17 @@ int vfs_mount(const char *dev, const char *mountpoint, const char *fstype, uint3
     vfs_filesystem_t *fs = vfs_find_filesystem(fstype);
     if (!fs)
     {
-        printf("[VFS] Unknown filesystem type: %s\n", fstype);
+        return -1;
+    }
+
+    if (!fs->mount)
+    {
         return -1;
     }
 
     vfs_superblock_t *sb = fs->mount(dev, flags);
     if (!sb)
     {
-        printf("[VFS] Failed to mount %s on %s\n", dev, mountpoint);
         return -1;
     }
 
@@ -152,7 +152,6 @@ int vfs_mount(const char *dev, const char *mountpoint, const char *fstype, uint3
         current_working_dir = sb->root;
     }
 
-    printf("[VFS] Mounted %s (%s) on %s\n", dev, fstype, mountpoint);
     return 0;
 }
 
@@ -179,7 +178,6 @@ int vfs_unmount(const char *mountpoint)
             free(mount->mountpoint);
             free(mount);
 
-            printf("[VFS] Unmounted %s\n", mountpoint);
             return 0;
         }
         curr = &(*curr)->next;
