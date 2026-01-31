@@ -473,12 +473,203 @@ int fat32_mkdir(vfs_node_t *dir, const char *name, mode_t mode)
 
 int fat32_rmdir(vfs_node_t *dir, const char *name)
 {
+    if (!dir || !name || !vfs_is_directory(dir))
+    {
+        return -1;
+    }
+
+    fat32_fs_t *fs = (fat32_fs_t *)dir->sb->fs_data;
+    fat32_inode_t *dir_inode = (fat32_inode_t *)dir->fs_data;
+    if (!fs || !dir_inode)
+    {
+        return -1;
+    }
+
+    /* First look up the target so we can verify it's empty */
+    vfs_node_t *target = fat32_lookup(dir, name);
+    if (!target || !vfs_is_directory(target))
+    {
+        if (target)
+            free(target);
+        return -1;
+    }
+
+    fat32_inode_t *target_inode = (fat32_inode_t *)target->fs_data;
+    uint32_t target_cluster = target_inode->first_cluster;
+
+    /* Check the target directory is empty (no entries other than
+     * deleted/LFN/volume-id markers) */
+    uint8_t *check_buf = (uint8_t *)malloc(fs->cluster_size);
+    if (!check_buf)
+    {
+        free(target->fs_data);
+        free(target);
+        return -1;
+    }
+
+    uint32_t scan = target_cluster;
+    while (scan >= 2 && scan < FAT32_EOC_MIN)
+    {
+        if (fat32_read_cluster(fs, scan, check_buf) != 0)
+            break;
+
+        fat32_dir_entry_t *entries = (fat32_dir_entry_t *)check_buf;
+        int num = fs->cluster_size / sizeof(fat32_dir_entry_t);
+
+        for (int i = 0; i < num; i++)
+        {
+            if (entries[i].name[0] == 0x00)
+                goto scan_done; /* end of entries */
+            if ((uint8_t)entries[i].name[0] == 0xE5)
+                continue; /* deleted */
+            if (entries[i].attr == FAT32_ATTR_LFN)
+                continue; /* LFN part */
+            if (entries[i].attr & FAT32_ATTR_VOLUME_ID)
+                continue; /* volume label */
+            /* Found a live entry - directory is not empty */
+            free(check_buf);
+            free(target->fs_data);
+            free(target);
+            return -1;
+        }
+        scan = fat32_get_next_cluster(fs, scan);
+    }
+scan_done:
+    free(check_buf);
+
+    /* Directory is empty - free its cluster chain */
+    fat32_free_chain(fs, target_cluster);
+
+    /* Now mark the entry in the parent as deleted (fall through to
+     * the shared deletion logic below) */
+    free(target->fs_data);
+    free(target);
+
+    /* Walk parent dir and mark the matching entry as 0xE5 */
+    uint32_t cluster = dir_inode->first_cluster;
+    uint8_t *cluster_buf = (uint8_t *)malloc(fs->cluster_size);
+    if (!cluster_buf)
+        return -1;
+
+    while (cluster >= 2 && cluster < FAT32_EOC_MIN)
+    {
+        if (fat32_read_cluster(fs, cluster, cluster_buf) != 0)
+        {
+            free(cluster_buf);
+            return -1;
+        }
+
+        fat32_dir_entry_t *entries = (fat32_dir_entry_t *)cluster_buf;
+        int num = fs->cluster_size / sizeof(fat32_dir_entry_t);
+
+        for (int i = 0; i < num; i++)
+        {
+            if (entries[i].name[0] == 0x00)
+            {
+                free(cluster_buf);
+                return -1;
+            }
+            if ((uint8_t)entries[i].name[0] == 0xE5)
+                continue;
+            if (entries[i].attr == FAT32_ATTR_LFN)
+                continue;
+
+            char entry_name[256];
+            fat32_83_to_name(entries[i].name, entry_name);
+
+            if (strcmp(entry_name, name) == 0)
+            {
+                entries[i].name[0] = (char)0xE5;
+                fat32_write_cluster(fs, cluster, cluster_buf);
+                free(cluster_buf);
+                return 0;
+            }
+        }
+        cluster = fat32_get_next_cluster(fs, cluster);
+    }
+
+    free(cluster_buf);
     return -1;
 }
 
 int fat32_unlink(vfs_node_t *dir, const char *name)
 {
-    return -1;
+    if (!dir || !name || !vfs_is_directory(dir))
+    {
+        return -1;
+    }
+
+    fat32_fs_t *fs = (fat32_fs_t *)dir->sb->fs_data;
+    fat32_inode_t *dir_inode = (fat32_inode_t *)dir->fs_data;
+    if (!fs || !dir_inode)
+    {
+        return -1;
+    }
+
+    uint32_t cluster = dir_inode->first_cluster;
+    uint8_t *cluster_buf = (uint8_t *)malloc(fs->cluster_size);
+    if (!cluster_buf)
+    {
+        return -1;
+    }
+
+    while (cluster >= 2 && cluster < FAT32_EOC_MIN)
+    {
+        if (fat32_read_cluster(fs, cluster, cluster_buf) != 0)
+        {
+            free(cluster_buf);
+            return -1;
+        }
+
+        fat32_dir_entry_t *entries = (fat32_dir_entry_t *)cluster_buf;
+        int num = fs->cluster_size / sizeof(fat32_dir_entry_t);
+
+        for (int i = 0; i < num; i++)
+        {
+            if (entries[i].name[0] == 0x00)
+            {
+                free(cluster_buf);
+                return -1; /* hit end of dir, name not found */
+            }
+
+            if ((uint8_t)entries[i].name[0] == 0xE5)
+                continue;
+            if (entries[i].attr == FAT32_ATTR_LFN)
+                continue;
+            if (entries[i].attr & FAT32_ATTR_DIRECTORY)
+                continue; /* unlink is for files only */
+
+            char entry_name[256];
+            fat32_83_to_name(entries[i].name, entry_name);
+
+            if (strcmp(entry_name, name) == 0)
+            {
+                /* Free the file's data clusters */
+                uint32_t first = ((uint32_t)entries[i].first_cluster_hi << 16) |
+                                 entries[i].first_cluster_lo;
+                if (first >= 2)
+                {
+                    fat32_free_chain(fs, first);
+                }
+
+                /* Mark directory entry as deleted */
+                entries[i].name[0] = (char)0xE5;
+
+                if (fat32_write_cluster(fs, cluster, cluster_buf) != 0)
+                {
+                    free(cluster_buf);
+                    return -1;
+                }
+
+                free(cluster_buf);
+                return 0;
+            }
+        }
+        cluster = fat32_get_next_cluster(fs, cluster);
+    }
+
+    free(cluster_buf);
+    return -1; /* name not found */
 }
 
 int fat32_open(vfs_node_t *node, vfs_file_t *file)
@@ -771,7 +962,7 @@ int fat32_readdir(vfs_file_t *file, struct dirent *dirent, size_t count)
 vfs_superblock_t *fat32_mount(const char *dev, uint32_t flags)
 {
     (void)flags;
-    
+
     if (!dev)
     {
         printf("[FAT32] Error: NULL device name\n");
@@ -835,9 +1026,6 @@ vfs_superblock_t *fat32_mount(const char *dev, uint32_t flags)
     fs->total_clusters = data_sectors / fs->boot.sectors_per_cluster;
     fs->cluster_size = fs->boot.bytes_per_sector * fs->boot.sectors_per_cluster;
 
-    printf("[FAT32] Mounted %s: %d clusters, %d bytes/cluster\n",
-           dev, fs->total_clusters, fs->cluster_size);
-
     // NO FAT CACHING - too large for heap!
     fs->fat_cache = NULL;
     fs->fat_cache_size = 0;
@@ -891,7 +1079,6 @@ vfs_superblock_t *fat32_mount(const char *dev, uint32_t flags)
 
     sb->root = root;
 
-    printf("[FAT32] Mount successful\n");
     return sb;
 }
 
@@ -959,6 +1146,5 @@ int fat32_init(void)
         return -1;
     }
 
-    printf("[FAT32] Driver initialized\n");
     return 0;
 }

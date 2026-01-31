@@ -60,6 +60,37 @@ void kmain(uint32_t multiboot_magic, void *multiboot_addr)
     // initialize FAT32 driver
     fat32_init();
 
+    // Auto-mount root filesystem and create directory tree
+    if (vfs_mount("hda", "/", "fat32", 0) == 0)
+    {
+        /* Create standard Linux-style directory tree.
+         * Errors are silently ignored - dirs may already
+         * exist on disk from a previous boot. */
+        const char *dirs[] = {
+            "/bin", "/boot", "/dev", "/etc", "/home",
+            "/lib", "/media", "/mnt", "/opt", "/proc",
+            "/root", "/run", "/sbin", "/srv", "/sys",
+            "/tmp", "/usr", "/var", NULL};
+        for (int i = 0; dirs[i]; i++)
+        {
+            vfs_mkdir(dirs[i], 0755);
+        }
+
+        vfs_mkdir("/usr/bin", 0755);
+        vfs_mkdir("/usr/lib", 0755);
+        vfs_mkdir("/usr/local", 0755);
+        vfs_mkdir("/usr/sbin", 0755);
+        vfs_mkdir("/usr/share", 0755);
+        vfs_mkdir("/var/log", 0755);
+        vfs_mkdir("/var/tmp", 0755);
+        vfs_mkdir("/var/cache", 0755);
+    }
+    else
+    {
+        printf("[KERNEL] Warning: Failed to mount root filesystem\n");
+        printf("[KERNEL] Use 'mount hda / fat32' manually\n");
+    }
+
     // launch shell
     shell_init();
     shell_run();

@@ -27,6 +27,8 @@ void vfs_init(void)
     mount_list = NULL;
     fs_list = NULL;
     current_working_dir = NULL;
+
+    printf("[VFS] Virtual filesystem initialized\n");
 }
 
 int vfs_register_filesystem(vfs_filesystem_t *fs)
@@ -54,6 +56,7 @@ int vfs_register_filesystem(vfs_filesystem_t *fs)
 
     spin_unlock(&vfs_lock);
 
+    printf("[VFS] Registered filesystem: %s\n", fs->name);
     return 0;
 }
 
@@ -68,6 +71,7 @@ int vfs_unregister_filesystem(const char *name)
         {
             *curr = (*curr)->next;
             spin_unlock(&vfs_lock);
+            printf("[VFS] Unregistered filesystem: %s\n", name);
             return 0;
         }
         curr = &(*curr)->next;
@@ -93,7 +97,6 @@ static vfs_filesystem_t *vfs_find_filesystem(const char *name)
 
 int vfs_mount(const char *dev, const char *mountpoint, const char *fstype, uint32_t flags)
 {
-
     if (!dev || !mountpoint || !fstype)
     {
         return -1;
@@ -152,6 +155,7 @@ int vfs_mount(const char *dev, const char *mountpoint, const char *fstype, uint3
         current_working_dir = sb->root;
     }
 
+    printf("[VFS] Mounted %s on %s\n", dev, mountpoint);
     return 0;
 }
 
@@ -178,6 +182,7 @@ int vfs_unmount(const char *mountpoint)
             free(mount->mountpoint);
             free(mount);
 
+            printf("[VFS] Unmounted %s\n", mountpoint);
             return 0;
         }
         curr = &(*curr)->next;
@@ -392,11 +397,23 @@ int vfs_open(const char *path, int flags, mode_t mode)
         char *last_slash = strrchr(dir_path, '/');
         if (!last_slash)
         {
-            return -1;
+            /* No slash at all - relative path, parent is cwd */
+            dir_path[0] = '.';
+            dir_path[1] = '\0';
         }
-
-        *last_slash = '\0';
-        const char *filename = last_slash + 1;
+        else if (last_slash == dir_path)
+        {
+            /* Slash is the very first char, e.g. "/foo.txt"
+             * Nulling it would leave dir_path as "" which
+             * resolve_path can't handle. Keep it as "/". */
+            dir_path[0] = '/';
+            dir_path[1] = '\0';
+        }
+        else
+        {
+            *last_slash = '\0';
+        }
+        const char *filename = last_slash ? (last_slash + 1) : path;
 
         vfs_node_t *dir = vfs_resolve_path(dir_path);
         if (!dir || !vfs_is_directory(dir))
@@ -667,7 +684,7 @@ int vfs_mkdir(const char *path, mode_t mode)
     vfs_node_t *node = vfs_resolve_path(path);
     if (node)
     {
-        return -1;
+        return -1; /* already exists */
     }
 
     char dir_path[VFS_MAX_PATH];
@@ -675,13 +692,27 @@ int vfs_mkdir(const char *path, mode_t mode)
     dir_path[VFS_MAX_PATH - 1] = '\0';
 
     char *last_slash = strrchr(dir_path, '/');
+    const char *dirname;
+
     if (!last_slash)
     {
-        return -1;
+        /* No slash - relative path, parent is cwd */
+        dir_path[0] = '.';
+        dir_path[1] = '\0';
+        dirname = path;
     }
-
-    *last_slash = '\0';
-    const char *dirname = last_slash + 1;
+    else if (last_slash == dir_path)
+    {
+        /* Leading slash only, e.g. "/docs" -> parent is "/" */
+        dir_path[0] = '/';
+        dir_path[1] = '\0';
+        dirname = last_slash + 1;
+    }
+    else
+    {
+        *last_slash = '\0';
+        dirname = last_slash + 1;
+    }
 
     vfs_node_t *parent = vfs_resolve_path(dir_path);
     if (!parent || !vfs_is_directory(parent))

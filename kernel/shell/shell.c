@@ -29,6 +29,8 @@ static void cmd_mkdir(int argc, char **argv);
 static void cmd_touch(int argc, char **argv);
 static void cmd_write(int argc, char **argv);
 static void cmd_rm(int argc, char **argv);
+static void cmd_cd(int argc, char **argv);
+static void cmd_pwd(int argc, char **argv);
 
 /*
  * Split's command into arguments
@@ -89,7 +91,9 @@ static void cmd_help(int argc, char **argv)
     printf("  disktest  - Test disk read\n");
     printf("  diskwrite - Test disk write\n");
     printf("  mount     - Mount a filesystem\n");
-    printf("  ls        - List directory contents\n");
+    printf("  ls [path] - List directory contents\n");
+    printf("  cd [path] - Change directory\n");
+    printf("  pwd       - Print working directory\n");
     printf("  cat       - Display file contents\n");
     printf("  mkdir     - Create directory\n");
     printf("  touch     - Create empty file\n");
@@ -329,9 +333,9 @@ static void cmd_diskwrite(int argc, char **argv)
     }
 }
 
-/*
+/* ====================================================================
  * VFS/Filesystem Commands
- */
+ * ==================================================================== */
 
 /*
  * Command: mount
@@ -504,6 +508,76 @@ static void cmd_write(int argc, char **argv)
 }
 
 /*
+ * Command: cd
+ */
+static void cmd_cd(int argc, char **argv)
+{
+    /* Target defaults to "/" if no arg given */
+    const char *target = (argc >= 2) ? argv[1] : "/";
+
+    vfs_node_t *node = vfs_resolve_path(target);
+    if (!node)
+    {
+        printf("cd: %s: No such file or directory\n", target);
+        return;
+    }
+
+    if (!vfs_is_directory(node))
+    {
+        printf("cd: %s: Not a directory\n", target);
+        return;
+    }
+
+    vfs_set_cwd(node);
+}
+
+/*
+ * Command: pwd
+ */
+static void cmd_pwd(int argc, char **argv)
+{
+    (void)argc;
+    (void)argv;
+
+    /* Walk up the parent chain and collect names, then print
+     * in root-first order. */
+    vfs_node_t *cwd = vfs_get_cwd();
+    if (!cwd)
+    {
+        printf("/\n");
+        return;
+    }
+
+    /* Collect path components by walking parents */
+    const char *parts[64];
+    int depth = 0;
+
+    vfs_node_t *n = cwd;
+    while (n && n->parent && depth < 63)
+    {
+        parts[depth++] = n->name;
+        n = n->parent;
+    }
+
+    /* If we're at root or cwd has no parent, just print "/" */
+    if (depth == 0)
+    {
+        printf("/\n");
+        return;
+    }
+
+    /* Print in reverse (root first) */
+    printf("/");
+    for (int i = depth - 1; i >= 0; i--)
+    {
+        printf("%s", parts[i]);
+        if (i > 0)
+            printf("/");
+    }
+    printf("\n");
+}
+
+/*
  * Command: rm
  */
 static void cmd_rm(int argc, char **argv)
@@ -613,6 +687,14 @@ static void execute_command(char *cmd)
     else if (strcmp(args[0], "rm") == 0)
     {
         cmd_rm(argc, args);
+    }
+    else if (strcmp(args[0], "cd") == 0)
+    {
+        cmd_cd(argc, args);
+    }
+    else if (strcmp(args[0], "pwd") == 0)
+    {
+        cmd_pwd(argc, args);
     }
     else
     {
