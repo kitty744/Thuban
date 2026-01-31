@@ -7,11 +7,6 @@
 #include <thuban/module.h>
 #include <thuban/device.h>
 
-MODULE_AUTHOR("Trollycat");
-MODULE_DESCRIPTION("VGA Driver");
-MODULE_LICENSE("MIT");
-MODULE_VERSION("0.1");
-
 static uint16_t *buffer = (uint16_t *)VGA_BUFFER;
 static uint8_t current_color = 0x0F;
 static size_t cursor_x = 0;
@@ -186,3 +181,8 @@ static int __init vga_driver_init(void)
 }
 
 early_initcall(vga_driver_init);
+
+MODULE_AUTHOR("Trollycat");
+MODULE_DESCRIPTION("VGA Driver");
+MODULE_LICENSE("MIT");
+MODULE_VERSION("0.1");

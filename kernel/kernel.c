@@ -42,18 +42,15 @@ void kmain(uint32_t multiboot_magic, void *multiboot_addr)
     idt_init();
     interrupts_init();
 
+    // initialize block device layer
+    blkdev_init();
+
     // initalize module's
     module_init_builtin();
     interrupts_enable();
 
     // initialize syscall subsystem (ready for future user programs)
     syscall_init();
-
-    // initialize block device layer
-    blkdev_init();
-
-    // initialize storage drivers
-    ata_pio_init();
 
     // launch shell
     shell_init();

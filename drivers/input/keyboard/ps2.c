@@ -12,11 +12,6 @@
 #include <thuban/device.h>
 #include <thuban/spinlock.h>
 
-MODULE_AUTHOR("Trollycat");
-MODULE_DESCRIPTION("PS/2 Keyboard Driver");
-MODULE_LICENSE("MIT");
-MODULE_VERSION("0.1");
-
 // keyboard state
 static uint8_t shift_pressed = 0;
 static uint8_t ctrl_pressed = 0;
@@ -351,3 +346,8 @@ static int __init keyboard_driver_init(void)
 }
 
 device_initcall(keyboard_driver_init);
+
+MODULE_AUTHOR("Trollycat");
+MODULE_DESCRIPTION("PS/2 Keyboard Driver");
+MODULE_LICENSE("MIT");
+MODULE_VERSION("0.1");

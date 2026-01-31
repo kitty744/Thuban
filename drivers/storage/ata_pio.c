@@ -9,6 +9,7 @@
 #include <thuban/stdio.h>
 #include <thuban/string.h>
 #include <thuban/spinlock.h>
+#include <thuban/module.h>
 
 /* ATA device structure */
 struct ata_device
@@ -501,3 +502,19 @@ int ata_pio_write(uint8_t bus, uint8_t drive, uint64_t lba,
 
     return ata_blkdev_write(&dev->blkdev, lba, count, buffer);
 }
+
+/*
+ * Driver initialization function
+ */
+static int __init ata_pio_driver_init(void)
+{
+    ata_pio_init();
+    return 0;
+}
+
+device_initcall(ata_pio_driver_init);
+
+MODULE_AUTHOR("Trollycat");
+MODULE_DESCRIPTION("ATA PIO driver.");
+MODULE_LICENSE("MIT");
+MODULE_VERSION("0.1");

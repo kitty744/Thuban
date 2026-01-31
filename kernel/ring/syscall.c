@@ -7,6 +7,7 @@
 #include <thuban/stdio.h>
 #include <thuban/string.h>
 #include <thuban/gdt.h>
+#include <thuban/vfs.h>
 
 /* System call table */
 static syscall_handler_t syscall_table[SYSCALL_MAX];
@@ -23,6 +24,26 @@ static int64_t sys_getpid_impl(uint64_t arg1, uint64_t arg2, uint64_t arg3,
 static int64_t sys_yield_impl(uint64_t arg1, uint64_t arg2, uint64_t arg3,
                               uint64_t arg4, uint64_t arg5, uint64_t arg6);
 
+/* VFS syscalls */
+static int64_t sys_open_impl(uint64_t path, uint64_t flags, uint64_t mode,
+                             uint64_t arg4, uint64_t arg5, uint64_t arg6);
+static int64_t sys_close_impl(uint64_t fd, uint64_t arg2, uint64_t arg3,
+                              uint64_t arg4, uint64_t arg5, uint64_t arg6);
+static int64_t sys_lseek_impl(uint64_t fd, uint64_t offset, uint64_t whence,
+                              uint64_t arg4, uint64_t arg5, uint64_t arg6);
+static int64_t sys_stat_impl(uint64_t path, uint64_t statbuf, uint64_t arg3,
+                             uint64_t arg4, uint64_t arg5, uint64_t arg6);
+static int64_t sys_fstat_impl(uint64_t fd, uint64_t statbuf, uint64_t arg3,
+                              uint64_t arg4, uint64_t arg5, uint64_t arg6);
+static int64_t sys_mkdir_impl(uint64_t path, uint64_t mode, uint64_t arg3,
+                              uint64_t arg4, uint64_t arg5, uint64_t arg6);
+static int64_t sys_rmdir_impl(uint64_t path, uint64_t arg2, uint64_t arg3,
+                              uint64_t arg4, uint64_t arg5, uint64_t arg6);
+static int64_t sys_getdents_impl(uint64_t fd, uint64_t dirp, uint64_t count,
+                                 uint64_t arg4, uint64_t arg5, uint64_t arg6);
+static int64_t sys_unlink_impl(uint64_t path, uint64_t arg2, uint64_t arg3,
+                               uint64_t arg4, uint64_t arg5, uint64_t arg6);
+
 /*
  * Initialize syscall subsystem
  */
@@ -37,6 +58,17 @@ void syscall_init(void)
     syscall_register(SYS_READ, sys_read_impl);
     syscall_register(SYS_GETPID, sys_getpid_impl);
     syscall_register(SYS_YIELD, sys_yield_impl);
+
+    /* Register VFS syscalls */
+    syscall_register(SYS_OPEN, sys_open_impl);
+    syscall_register(SYS_CLOSE, sys_close_impl);
+    syscall_register(SYS_LSEEK, sys_lseek_impl);
+    syscall_register(SYS_STAT, sys_stat_impl);
+    syscall_register(SYS_FSTAT, sys_fstat_impl);
+    syscall_register(SYS_MKDIR, sys_mkdir_impl);
+    syscall_register(SYS_RMDIR, sys_rmdir_impl);
+    syscall_register(SYS_GETDENTS, sys_getdents_impl);
+    syscall_register(SYS_UNLINK, sys_unlink_impl);
 
     /* Configure MSRs for SYSCALL/SYSRET */
 
@@ -102,9 +134,9 @@ int64_t syscall_handler(uint64_t num, uint64_t arg1, uint64_t arg2,
     return syscall_table[num](arg1, arg2, arg3, arg4, arg5, 0);
 }
 
-/* ============================================================================
+/*
  * Syscall Implementations
- * ============================================================================ */
+ */
 
 /*
  * SYS_EXIT: Terminate current process
@@ -142,21 +174,19 @@ static int64_t sys_write_impl(uint64_t fd, uint64_t buf, uint64_t count,
         return -1;
     }
 
-    /* For now, only support stdout (fd 1) and stderr (fd 2) */
-    if (fd != 1 && fd != 2)
+    /* For stdout/stderr, write to console */
+    if (fd == 1 || fd == 2)
     {
-        printf("[SYSCALL] Write to unsupported fd: %llu\n", fd);
-        return -1;
+        const char *str = (const char *)buf;
+        for (size_t i = 0; i < count; i++)
+        {
+            putchar(str[i]);
+        }
+        return (int64_t)count;
     }
 
-    /* Write to console */
-    const char *str = (const char *)buf;
-    for (size_t i = 0; i < count; i++)
-    {
-        putchar(str[i]);
-    }
-
-    return (int64_t)count;
+    /* Otherwise use VFS */
+    return (int64_t)vfs_write((int)fd, (const void *)buf, (size_t)count);
 }
 
 /*
@@ -175,35 +205,34 @@ static int64_t sys_read_impl(uint64_t fd, uint64_t buf, uint64_t count,
         return -1;
     }
 
-    /* For now, only support stdin (fd 0) */
-    if (fd != 0)
+    /* For stdin, read from keyboard */
+    if (fd == 0)
     {
-        printf("[SYSCALL] Read from unsupported fd: %llu\n", fd);
-        return -1;
-    }
+        char *buffer = (char *)buf;
+        size_t bytes_read = 0;
 
-    /* Read from keyboard */
-    char *buffer = (char *)buf;
-    size_t bytes_read = 0;
-
-    while (bytes_read < count)
-    {
-        int c = getchar();
-        if (c == -1)
+        while (bytes_read < count)
         {
-            break;
+            int c = getchar();
+            if (c == -1)
+            {
+                break;
+            }
+
+            buffer[bytes_read++] = (char)c;
+
+            /* Stop on newline */
+            if (c == '\n')
+            {
+                break;
+            }
         }
 
-        buffer[bytes_read++] = (char)c;
-
-        /* Stop on newline */
-        if (c == '\n')
-        {
-            break;
-        }
+        return (int64_t)bytes_read;
     }
 
-    return (int64_t)bytes_read;
+    /* Otherwise use VFS */
+    return (int64_t)vfs_read((int)fd, (void *)buf, (size_t)count);
 }
 
 /*
@@ -237,7 +266,170 @@ static int64_t sys_yield_impl(uint64_t arg1, uint64_t arg2, uint64_t arg3,
     (void)arg6;
 
     /* TODO: Call scheduler when we have one */
-    printf("[SYSCALL] Yield called\n");
-
     return 0;
+}
+
+/*
+ * VFS Syscall Implementations
+ */
+
+/*
+ * SYS_OPEN: Open file
+ */
+static int64_t sys_open_impl(uint64_t path, uint64_t flags, uint64_t mode,
+                             uint64_t arg4, uint64_t arg5, uint64_t arg6)
+{
+    (void)arg4;
+    (void)arg5;
+    (void)arg6;
+
+    if (!path)
+    {
+        return -1;
+    }
+
+    return (int64_t)vfs_open((const char *)path, (int)flags, (mode_t)mode);
+}
+
+/*
+ * SYS_CLOSE: Close file
+ */
+static int64_t sys_close_impl(uint64_t fd, uint64_t arg2, uint64_t arg3,
+                              uint64_t arg4, uint64_t arg5, uint64_t arg6)
+{
+    (void)arg2;
+    (void)arg3;
+    (void)arg4;
+    (void)arg5;
+    (void)arg6;
+
+    return (int64_t)vfs_close((int)fd);
+}
+
+/*
+ * SYS_LSEEK: Seek in file
+ */
+static int64_t sys_lseek_impl(uint64_t fd, uint64_t offset, uint64_t whence,
+                              uint64_t arg4, uint64_t arg5, uint64_t arg6)
+{
+    (void)arg4;
+    (void)arg5;
+    (void)arg6;
+
+    return (int64_t)vfs_lseek((int)fd, (off_t)offset, (int)whence);
+}
+
+/*
+ * SYS_STAT: Get file status
+ */
+static int64_t sys_stat_impl(uint64_t path, uint64_t statbuf, uint64_t arg3,
+                             uint64_t arg4, uint64_t arg5, uint64_t arg6)
+{
+    (void)arg3;
+    (void)arg4;
+    (void)arg5;
+    (void)arg6;
+
+    if (!path || !statbuf)
+    {
+        return -1;
+    }
+
+    return (int64_t)vfs_stat((const char *)path, (struct stat *)statbuf);
+}
+
+/*
+ * SYS_FSTAT: Get file status from descriptor
+ */
+static int64_t sys_fstat_impl(uint64_t fd, uint64_t statbuf, uint64_t arg3,
+                              uint64_t arg4, uint64_t arg5, uint64_t arg6)
+{
+    (void)arg3;
+    (void)arg4;
+    (void)arg5;
+    (void)arg6;
+
+    if (!statbuf)
+    {
+        return -1;
+    }
+
+    return (int64_t)vfs_fstat((int)fd, (struct stat *)statbuf);
+}
+
+/*
+ * SYS_MKDIR: Create directory
+ */
+static int64_t sys_mkdir_impl(uint64_t path, uint64_t mode, uint64_t arg3,
+                              uint64_t arg4, uint64_t arg5, uint64_t arg6)
+{
+    (void)arg3;
+    (void)arg4;
+    (void)arg5;
+    (void)arg6;
+
+    if (!path)
+    {
+        return -1;
+    }
+
+    return (int64_t)vfs_mkdir((const char *)path, (mode_t)mode);
+}
+
+/*
+ * SYS_RMDIR: Remove directory
+ */
+static int64_t sys_rmdir_impl(uint64_t path, uint64_t arg2, uint64_t arg3,
+                              uint64_t arg4, uint64_t arg5, uint64_t arg6)
+{
+    (void)arg2;
+    (void)arg3;
+    (void)arg4;
+    (void)arg5;
+    (void)arg6;
+
+    if (!path)
+    {
+        return -1;
+    }
+
+    return (int64_t)vfs_rmdir((const char *)path);
+}
+
+/*
+ * SYS_GETDENTS: Read directory entries
+ */
+static int64_t sys_getdents_impl(uint64_t fd, uint64_t dirp, uint64_t count,
+                                 uint64_t arg4, uint64_t arg5, uint64_t arg6)
+{
+    (void)arg4;
+    (void)arg5;
+    (void)arg6;
+
+    if (!dirp)
+    {
+        return -1;
+    }
+
+    return (int64_t)vfs_readdir((int)fd, (struct dirent *)dirp, (size_t)count);
+}
+
+/*
+ * SYS_UNLINK: Remove file
+ */
+static int64_t sys_unlink_impl(uint64_t path, uint64_t arg2, uint64_t arg3,
+                               uint64_t arg4, uint64_t arg5, uint64_t arg6)
+{
+    (void)arg2;
+    (void)arg3;
+    (void)arg4;
+    (void)arg5;
+    (void)arg6;
+
+    if (!path)
+    {
+        return -1;
+    }
+
+    return (int64_t)vfs_unlink((const char *)path);
 }

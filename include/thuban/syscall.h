@@ -15,6 +15,15 @@
 typedef long ssize_t;
 #endif
 
+#ifndef _OFF_T_DEFINED
+#define _OFF_T_DEFINED
+typedef int64_t off_t;
+#endif
+
+/* Forward declarations for VFS types */
+struct stat;
+struct dirent;
+
 /* System call numbers */
 #define SYS_EXIT 0
 #define SYS_WRITE 1
@@ -29,8 +38,15 @@ typedef long ssize_t;
 #define SYS_SLEEP 10
 #define SYS_YIELD 11
 #define SYS_GETTIME 12
+#define SYS_LSEEK 13
+#define SYS_STAT 14
+#define SYS_FSTAT 15
+#define SYS_MKDIR 16
+#define SYS_RMDIR 17
+#define SYS_GETDENTS 18
+#define SYS_UNLINK 19
 
-#define SYSCALL_MAX 13
+#define SYSCALL_MAX 256
 
 /* MSR (Model Specific Register) addresses for SYSCALL/SYSRET */
 #define MSR_STAR 0xC0000081   /* Segment selectors for syscall */
@@ -110,6 +126,52 @@ static inline int sys_getpid(void)
 static inline void sys_yield(void)
 {
     syscall(SYS_YIELD, 0, 0, 0, 0, 0);
+}
+
+/* VFS syscall helpers */
+static inline int sys_open(const char *path, int flags, int mode)
+{
+    return syscall(SYS_OPEN, (uint64_t)path, flags, mode, 0, 0);
+}
+
+static inline int sys_close(int fd)
+{
+    return syscall(SYS_CLOSE, fd, 0, 0, 0, 0);
+}
+
+static inline ssize_t sys_lseek(int fd, off_t offset, int whence)
+{
+    return syscall(SYS_LSEEK, fd, offset, whence, 0, 0);
+}
+
+static inline int sys_stat(const char *path, struct stat *statbuf)
+{
+    return syscall(SYS_STAT, (uint64_t)path, (uint64_t)statbuf, 0, 0, 0);
+}
+
+static inline int sys_fstat(int fd, struct stat *statbuf)
+{
+    return syscall(SYS_FSTAT, fd, (uint64_t)statbuf, 0, 0, 0);
+}
+
+static inline int sys_mkdir(const char *path, int mode)
+{
+    return syscall(SYS_MKDIR, (uint64_t)path, mode, 0, 0, 0);
+}
+
+static inline int sys_rmdir(const char *path)
+{
+    return syscall(SYS_RMDIR, (uint64_t)path, 0, 0, 0, 0);
+}
+
+static inline int sys_getdents(int fd, struct dirent *dirp, size_t count)
+{
+    return syscall(SYS_GETDENTS, fd, (uint64_t)dirp, count, 0, 0);
+}
+
+static inline int sys_unlink(const char *path)
+{
+    return syscall(SYS_UNLINK, (uint64_t)path, 0, 0, 0, 0);
 }
 
 #endif
