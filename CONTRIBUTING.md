@@ -31,14 +31,14 @@ Documentation is not optional.
 
 ## 3. Development Workflow
 
-| Step  | Action          | Description                                                           |
-| :---- | :-------------- | :-------------------------------------------------------------------- |
-| **1** | **Fork & Sync** | Fork the repo and ensure your `main` branch is up to date.            |
-| **2** | **Research**    | Read `docs/updates/TODO.md` and check issues to avoid duplicate work. |
-| **3** | **Branch**      | Create a feature branch: `git checkout -b feature/driver-x`.          |
-| **4** | **Implement**   | Write your code and accompanying tests if applicable.                 |
-| **5** | **Credit**      | Add your name to `CREDITS` and your email to `.mailmap`.              |
-| **6** | **Submit**      | Open a Pull Request with a detailed description of changes.           |
+| Step  | Action          | Description                                                  |
+| :---- | :-------------- | :----------------------------------------------------------- |
+| **1** | **Fork & Sync** | Fork the repo and ensure your `main` branch is up to date.   |
+| **2** | **Research**    | Read `docs/updates/dev/TODO.md` to see what need's done      |
+| **3** | **Branch**      | Create a feature branch: `git checkout -b feature/driver-x`. |
+| **4** | **Implement**   | Write your code and accompanying tests if applicable.        |
+| **5** | **Credit**      | Add your name to `CREDITS`                                   |
+| **6** | **Submit**      | Open a Pull Request with a detailed description of changes.  |
 
 ---
 
@@ -46,7 +46,7 @@ Documentation is not optional.
 
 Before submitting a Pull Request, ensure:
 
-1. The kernel builds without warnings (`-Werror` is highly encouraged).
+1. The kernel builds without warnings
 2. Your changes do not introduce regressions in existing drivers.
 3. (Optional) Provide a log of the kernel booting successfully with your changes.
 
