@@ -200,19 +200,57 @@ void fat32_name_to_83(const char *name, char *name83)
 
 void fat32_83_to_name(const char *name83, char *name)
 {
+    /*
+     * BUG FIX: stale / corrupted directory entries produce garbage
+     * names.  When a cluster is freed (rm/rmdir) the FAT entry is
+     * cleared but the cluster's data stays on disk.  If that cluster
+     * is later re-allocated for a NEW directory, the old 32-byte dir
+     * entries are still there.  readdir hits them before the 0x00
+     * terminator.  The stale name fields contain arbitrary bytes.
+     *
+     * The old code copied every byte verbatim, producing names like
+     * "hello.l..___woirld...c..d.xcd.x".  Now we skip any byte that
+     * isn't printable ASCII (0x21-0x7E).  Non-printable bytes are
+     * dropped.  If the entire name field is garbage we get an empty
+     * string; the caller treats it as invalid.
+     *
+     * The zero-on-alloc fix in fat32_create prevents NEW directories
+     * from having stale data.  This is a safety net for existing disk
+     * images and edge cases.
+     */
     int i, j = 0;
 
-    for (i = 0; i < 8 && name83[i] != ' '; i++)
+    for (i = 0; i < 8; i++)
     {
-        name[j++] = (name83[i] >= 'A' && name83[i] <= 'Z') ? (name83[i] - 'A' + 'a') : name83[i];
+        unsigned char c = (unsigned char)name83[i];
+        if (c == ' ' || c == 0x00)
+            break; /* end of name field */
+        if (c < 0x21 || c > 0x7E)
+            continue; /* skip non-printable garbage */
+        name[j++] = (c >= 'A' && c <= 'Z') ? (c - 'A' + 'a') : (char)c;
     }
 
-    if (name83[8] != ' ')
+    /* Extension: only add dot + ext if ext field has printable content */
     {
-        name[j++] = '.';
-        for (i = 8; i < 11 && name83[i] != ' '; i++)
+        int ext_start = j;
+        int has_ext = 0;
+        int ext_j = j + 1; /* +1 to leave room for '.' */
+
+        for (i = 8; i < 11; i++)
         {
-            name[j++] = (name83[i] >= 'A' && name83[i] <= 'Z') ? (name83[i] - 'A' + 'a') : name83[i];
+            unsigned char c = (unsigned char)name83[i];
+            if (c == ' ' || c == 0x00)
+                break;
+            if (c < 0x21 || c > 0x7E)
+                continue;
+            name[ext_j++] = (c >= 'A' && c <= 'Z') ? (c - 'A' + 'a') : (char)c;
+            has_ext = 1;
+        }
+
+        if (has_ext)
+        {
+            name[ext_start] = '.';
+            j = ext_j;
         }
     }
 
@@ -383,15 +421,57 @@ int fat32_create(vfs_node_t *dir, const char *name, mode_t mode)
         return -1;
     }
 
-    if (fat32_lookup(dir, name) != NULL)
+    /*
+     * BUG FIX: fat32_lookup mallocs a vfs_node_t + fat32_inode_t on
+     * every hit.  The old code threw the pointer away, leaking both
+     * allocations every time an entry already existed.  On a fresh
+     * disk the kernel creates 26 directories in a row; the leaked
+     * nodes ate the heap and every mkdir after the first few silently
+     * failed.  Free the node (and its fs_data) before returning.
+     */
     {
-        return -1;
+        vfs_node_t *existing = fat32_lookup(dir, name);
+        if (existing != NULL)
+        {
+            if (existing->fs_data)
+                free(existing->fs_data);
+            free(existing);
+            return -1;
+        }
     }
 
     uint32_t new_cluster = fat32_alloc_cluster(fs);
     if (new_cluster == 0)
     {
         return -1;
+    }
+
+    /*
+     * BUG FIX: zero the newly allocated cluster on disk.
+     *
+     * fat32_alloc_cluster marks the cluster as used in the FAT but
+     * does NOT touch the cluster's data.  For a directory, that
+     * cluster IS its directory listing — readdir scans it
+     * immediately.  If the cluster was previously used by another
+     * file/dir and then freed (rm/rmdir only zeros the FAT entry,
+     * not the data), the stale 32-byte dir entries are still sitting
+     * on disk.  readdir interprets them as live entries, producing
+     * ghost files with corrupted / garbled names.
+     *
+     * Zero unconditionally: directories obviously need it, and for
+     * files it prevents any stale-data leak if the cluster is later
+     * read before a full write fills it.
+     */
+    {
+        uint8_t *zero_buf = (uint8_t *)malloc(fs->cluster_size);
+        if (!zero_buf)
+        {
+            fat32_free_cluster(fs, new_cluster);
+            return -1;
+        }
+        memset(zero_buf, 0, fs->cluster_size);
+        fat32_write_cluster(fs, new_cluster, zero_buf);
+        free(zero_buf);
     }
 
     uint32_t cluster = dir_inode->first_cluster;
@@ -490,7 +570,11 @@ int fat32_rmdir(vfs_node_t *dir, const char *name)
     if (!target || !vfs_is_directory(target))
     {
         if (target)
+        {
+            if (target->fs_data)
+                free(target->fs_data);
             free(target);
+        }
         return -1;
     }
 
@@ -540,8 +624,7 @@ scan_done:
     /* Directory is empty - free its cluster chain */
     fat32_free_chain(fs, target_cluster);
 
-    /* Now mark the entry in the parent as deleted (fall through to
-     * the shared deletion logic below) */
+    /* Now mark the entry in the parent as deleted */
     free(target->fs_data);
     free(target);
 
@@ -749,6 +832,46 @@ ssize_t fat32_read(vfs_file_t *file, void *buf, size_t count, off_t offset)
     return bytes_read;
 }
 
+/*
+ * Write the current file size back into the directory entry on disk.
+ * fat32_write updates node->size in memory but the on-disk dir entry
+ * still has file_size == 0, so any subsequent open/read sees size 0.
+ */
+static int fat32_update_dir_entry(fat32_fs_t *fs, vfs_node_t *node)
+{
+    fat32_inode_t *inode = (fat32_inode_t *)node->fs_data;
+    if (!inode || inode->dir_cluster < 2)
+        return -1;
+
+    uint8_t *cluster_buf = (uint8_t *)malloc(fs->cluster_size);
+    if (!cluster_buf)
+        return -1;
+
+    if (fat32_read_cluster(fs, inode->dir_cluster, cluster_buf) != 0)
+    {
+        free(cluster_buf);
+        return -1;
+    }
+
+    fat32_dir_entry_t *entries = (fat32_dir_entry_t *)cluster_buf;
+    fat32_dir_entry_t *entry = &entries[inode->dir_offset];
+
+    entry->file_size = (uint32_t)node->size;
+    /* Also update first_cluster in case it changed (new file that
+     * had no cluster until the first write) */
+    entry->first_cluster_hi = (inode->first_cluster >> 16) & 0xFFFF;
+    entry->first_cluster_lo = inode->first_cluster & 0xFFFF;
+
+    if (fat32_write_cluster(fs, inode->dir_cluster, cluster_buf) != 0)
+    {
+        free(cluster_buf);
+        return -1;
+    }
+
+    free(cluster_buf);
+    return 0;
+}
+
 ssize_t fat32_write(vfs_file_t *file, const void *buf, size_t count, off_t offset)
 {
     if (!file || !buf)
@@ -862,6 +985,11 @@ ssize_t fat32_write(vfs_file_t *file, const void *buf, size_t count, off_t offse
     {
         node->size = offset + bytes_written;
     }
+
+    /* Persist the updated size (and first_cluster) back into the
+     * parent directory entry on disk. Without this, re-opening the
+     * file yields size == 0 and read returns nothing. */
+    fat32_update_dir_entry(fs, node);
 
     free(cluster_buf);
     return bytes_written;

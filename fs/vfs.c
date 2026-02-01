@@ -27,6 +27,8 @@ void vfs_init(void)
     mount_list = NULL;
     fs_list = NULL;
     current_working_dir = NULL;
+
+    printf("[VFS] Virtual filesystem initialized\n");
 }
 
 int vfs_register_filesystem(vfs_filesystem_t *fs)
@@ -54,6 +56,7 @@ int vfs_register_filesystem(vfs_filesystem_t *fs)
 
     spin_unlock(&vfs_lock);
 
+    printf("[VFS] Registered filesystem: %s\n", fs->name);
     return 0;
 }
 
@@ -68,6 +71,7 @@ int vfs_unregister_filesystem(const char *name)
         {
             *curr = (*curr)->next;
             spin_unlock(&vfs_lock);
+            printf("[VFS] Unregistered filesystem: %s\n", name);
             return 0;
         }
         curr = &(*curr)->next;
@@ -151,6 +155,7 @@ int vfs_mount(const char *dev, const char *mountpoint, const char *fstype, uint3
         current_working_dir = sb->root;
     }
 
+    printf("[VFS] Mounted %s on %s\n", dev, mountpoint);
     return 0;
 }
 
@@ -177,6 +182,7 @@ int vfs_unmount(const char *mountpoint)
             free(mount->mountpoint);
             free(mount);
 
+            printf("[VFS] Unmounted %s\n", mountpoint);
             return 0;
         }
         curr = &(*curr)->next;
@@ -257,6 +263,7 @@ vfs_node_t *vfs_resolve_path_from(vfs_node_t *start, const char *path)
     path_copy[VFS_MAX_PATH - 1] = '\0';
 
     vfs_node_t *current = start;
+    int owned = 0;
     char *token = path_copy;
     char *next;
 
@@ -294,7 +301,14 @@ vfs_node_t *vfs_resolve_path_from(vfs_node_t *start, const char *path)
         {
             if (current->parent)
             {
+                if (owned)
+                {
+                    if (current->fs_data)
+                        free(current->fs_data);
+                    free(current);
+                }
                 current = current->parent;
+                owned = 0;
             }
             token = next;
             continue;
@@ -302,21 +316,46 @@ vfs_node_t *vfs_resolve_path_from(vfs_node_t *start, const char *path)
 
         if (!vfs_is_directory(current))
         {
+            if (owned)
+            {
+                if (current->fs_data)
+                    free(current->fs_data);
+                free(current);
+            }
             return NULL;
         }
 
         if (!current->iops || !current->iops->lookup)
         {
+            if (owned)
+            {
+                if (current->fs_data)
+                    free(current->fs_data);
+                free(current);
+            }
             return NULL;
         }
 
         vfs_node_t *child = current->iops->lookup(current, token);
         if (!child)
         {
+            if (owned)
+            {
+                if (current->fs_data)
+                    free(current->fs_data);
+                free(current);
+            }
             return NULL;
         }
 
+        if (owned)
+        {
+            if (current->fs_data)
+                free(current->fs_data);
+            free(current);
+        }
         current = child;
+        owned = 1;
         token = next;
     }
 
@@ -384,30 +423,35 @@ int vfs_open(const char *path, int flags, mode_t mode)
 
     if (!node && (flags & O_CREAT))
     {
+        /*
+         * BUG FIX: same pointer-invalidation class as vfs_mkdir.
+         * Derive filename and dir_path from the ORIGINAL path
+         * pointer (const, never modified).  Never point filename
+         * into dir_path.
+         */
+        const char *last_slash = strrchr(path, '/');
+        const char *filename;
         char dir_path[VFS_MAX_PATH];
-        strncpy(dir_path, path, VFS_MAX_PATH - 1);
-        dir_path[VFS_MAX_PATH - 1] = '\0';
 
-        char *last_slash = strrchr(dir_path, '/');
         if (!last_slash)
         {
-            /* No slash at all - relative path, parent is cwd */
             dir_path[0] = '.';
             dir_path[1] = '\0';
+            filename = path;
         }
-        else if (last_slash == dir_path)
+        else if (last_slash == path)
         {
-            /* Slash is the very first char, e.g. "/foo.txt"
-             * Nulling it would leave dir_path as "" which
-             * resolve_path can't handle. Keep it as "/". */
             dir_path[0] = '/';
             dir_path[1] = '\0';
+            filename = last_slash + 1;
         }
         else
         {
-            *last_slash = '\0';
+            int len = (int)(last_slash - path);
+            strncpy(dir_path, path, len);
+            dir_path[len] = '\0';
+            filename = last_slash + 1;
         }
-        const char *filename = last_slash ? (last_slash + 1) : path;
 
         vfs_node_t *dir = vfs_resolve_path(dir_path);
         if (!dir || !vfs_is_directory(dir))
@@ -681,31 +725,51 @@ int vfs_mkdir(const char *path, mode_t mode)
         return -1; /* already exists */
     }
 
-    char dir_path[VFS_MAX_PATH];
-    strncpy(dir_path, path, VFS_MAX_PATH - 1);
-    dir_path[VFS_MAX_PATH - 1] = '\0';
-
-    char *last_slash = strrchr(dir_path, '/');
+    /*
+     * BUG FIX: dirname pointer invalidation.
+     *
+     * The old code did:
+     *     strncpy(dir_path, path, ...);
+     *     last_slash = strrchr(dir_path, '/');
+     *     dirname = last_slash + 1;       // points INTO dir_path
+     *     dir_path[0] = '/';
+     *     dir_path[1] = '\0';             // KILLS dirname — it pointed at [1]
+     *
+     * For "/bin": last_slash = &dir_path[0].  dirname = &dir_path[1] = "bin".
+     * Then dir_path[1] = '\0' overwrites the 'b'.  dirname is now "".
+     * fat32_is_valid_name("") returns false.  fat32_create returns -1.
+     * vfs_mkdir returns -1 silently.  The kernel ignores the return value.
+     * EVERY single-component absolute path was broken.
+     *
+     * Fix: find last_slash in the ORIGINAL (const) path, derive dirname
+     * from it, then separately build dir_path.  dirname points into
+     * the original path string which is never modified.
+     */
+    const char *last_slash = strrchr(path, '/');
     const char *dirname;
+    char dir_path[VFS_MAX_PATH];
 
     if (!last_slash)
     {
-        /* No slash - relative path, parent is cwd */
+        /* Relative path like "mydir". Parent is cwd. */
         dir_path[0] = '.';
         dir_path[1] = '\0';
         dirname = path;
     }
-    else if (last_slash == dir_path)
+    else if (last_slash == path)
     {
-        /* Leading slash only, e.g. "/docs" -> parent is "/" */
+        /* "/bin" — parent is "/", dirname is "bin" */
         dir_path[0] = '/';
         dir_path[1] = '\0';
-        dirname = last_slash + 1;
+        dirname = last_slash + 1; /* points into original path — never clobbered */
     }
     else
     {
-        *last_slash = '\0';
-        dirname = last_slash + 1;
+        /* "/usr/bin" — parent is "/usr", dirname is "bin" */
+        int len = (int)(last_slash - path);
+        strncpy(dir_path, path, len);
+        dir_path[len] = '\0';
+        dirname = last_slash + 1; /* points into original path — never clobbered */
     }
 
     vfs_node_t *parent = vfs_resolve_path(dir_path);

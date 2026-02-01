@@ -29,6 +29,7 @@ static void cmd_mkdir(int argc, char **argv);
 static void cmd_touch(int argc, char **argv);
 static void cmd_write(int argc, char **argv);
 static void cmd_rm(int argc, char **argv);
+static void cmd_rmdir(int argc, char **argv);
 static void cmd_cd(int argc, char **argv);
 static void cmd_pwd(int argc, char **argv);
 
@@ -70,6 +71,52 @@ static int parse_command(char *cmd, char **args)
     return argc;
 }
 
+/* Helper: build the current working directory path string into buf.
+ * Returns buf on success. */
+static char *get_cwd_string(char *buf, int buflen)
+{
+    vfs_node_t *cwd = vfs_get_cwd();
+    if (!cwd)
+    {
+        buf[0] = '/';
+        buf[1] = '\0';
+        return buf;
+    }
+
+    const char *parts[64];
+    int depth = 0;
+
+    vfs_node_t *n = cwd;
+    while (n && n->parent && depth < 63)
+    {
+        parts[depth++] = n->name;
+        n = n->parent;
+    }
+
+    if (depth == 0)
+    {
+        buf[0] = '/';
+        buf[1] = '\0';
+        return buf;
+    }
+
+    /* Build path root-first */
+    int pos = 0;
+    buf[pos++] = '/';
+    for (int i = depth - 1; i >= 0; i--)
+    {
+        int len = strlen(parts[i]);
+        if (pos + len + 1 >= buflen)
+            break;
+        memcpy(buf + pos, parts[i], len);
+        pos += len;
+        if (i > 0)
+            buf[pos++] = '/';
+    }
+    buf[pos] = '\0';
+    return buf;
+}
+
 /*
  * Command: help
  */
@@ -79,26 +126,27 @@ static void cmd_help(int argc, char **argv)
     (void)argv;
 
     printf("Thuban OS Shell - Available Commands:\n");
-    printf("  help      - Display this help message\n");
-    printf("  clear     - Clear the screen\n");
-    printf("  meminfo   - Display memory information\n");
-    printf("  sysinfo   - Display system information\n");
-    printf("  drivers   - List all drivers\n");
-    printf("  echo      - Echo arguments\n");
-    printf("  reboot    - Reboot the system\n");
-    printf("  panic     - Trigger a BSOD\n");
-    printf("  lsblk     - List block devices\n");
-    printf("  disktest  - Test disk read\n");
-    printf("  diskwrite - Test disk write\n");
-    printf("  mount     - Mount a filesystem\n");
-    printf("  ls [path] - List directory contents\n");
-    printf("  cd [path] - Change directory\n");
-    printf("  pwd       - Print working directory\n");
-    printf("  cat       - Display file contents\n");
-    printf("  mkdir     - Create directory\n");
-    printf("  touch     - Create empty file\n");
-    printf("  write     - Write text to file\n");
-    printf("  rm        - Remove file\n");
+    printf("  help                - Display this help message\n");
+    printf("  clear               - Clear the screen\n");
+    printf("  meminfo             - Display memory information\n");
+    printf("  sysinfo             - Display system information\n");
+    printf("  drivers             - List all drivers\n");
+    printf("  echo                - Echo arguments\n");
+    printf("  reboot              - Reboot the system\n");
+    printf("  panic               - Trigger a BSOD\n");
+    printf("  lsblk               - List block devices\n");
+    printf("  disktest            - Test disk read\n");
+    printf("  diskwrite           - Test disk write\n");
+    printf("  mount               - Mount a filesystem\n");
+    printf("  ls [path]           - List directory contents\n");
+    printf("  cd [path]           - Change directory\n");
+    printf("  pwd                 - Print working directory\n");
+    printf("  cat <file>          - Display file contents\n");
+    printf("  mkdir <dir>         - Create directory\n");
+    printf("  touch <file>        - Create empty file\n");
+    printf("  write <file> <text> - Write text to file\n");
+    printf("  rm <file>           - Remove file\n");
+    printf("  rmdir <dir>         - Remove empty directory\n");
 }
 
 /*
@@ -333,9 +381,9 @@ static void cmd_diskwrite(int argc, char **argv)
     }
 }
 
-/* ====================================================================
+/*
  * VFS/Filesystem Commands
- * ==================================================================== */
+ */
 
 /*
  * Command: mount
@@ -368,7 +416,21 @@ static void cmd_mount(int argc, char **argv)
  */
 static void cmd_ls(int argc, char **argv)
 {
-    const char *path = (argc >= 2) ? argv[1] : "/";
+    const char *path;
+    char display_path[256];
+
+    if (argc >= 2)
+    {
+        path = argv[1];
+        strncpy(display_path, argv[1], sizeof(display_path) - 1);
+        display_path[sizeof(display_path) - 1] = '\0';
+    }
+    else
+    {
+        /* No argument — list cwd */
+        path = ".";
+        get_cwd_string(display_path, sizeof(display_path));
+    }
 
     int fd = vfs_open(path, O_RDONLY | O_DIRECTORY, 0);
     if (fd < 0)
@@ -380,7 +442,7 @@ static void cmd_ls(int argc, char **argv)
     struct dirent dirents[16];
     int count;
 
-    printf("Directory listing of %s:\n", path);
+    printf("Directory listing of %s:\n", display_path);
 
     while ((count = vfs_readdir(fd, dirents, 16)) > 0)
     {
@@ -407,10 +469,31 @@ static void cmd_cat(int argc, char **argv)
 
     const char *filename = argv[1];
 
+    /* Reject flag-like arguments */
+    if (filename[0] == '-')
+    {
+        printf("cat: invalid option '%s'\n", filename);
+        return;
+    }
+
+    /* Resolve the path first so we can give a proper error for dirs */
+    vfs_node_t *node = vfs_resolve_path(filename);
+    if (!node)
+    {
+        printf("cat: '%s': No such file or directory\n", filename);
+        return;
+    }
+
+    if (vfs_is_directory(node))
+    {
+        printf("cat: '%s': Is a directory\n", filename);
+        return;
+    }
+
     int fd = vfs_open(filename, O_RDONLY, 0);
     if (fd < 0)
     {
-        printf("cat: cannot open '%s': No such file or directory\n", filename);
+        printf("cat: cannot open '%s'\n", filename);
         return;
     }
 
@@ -423,6 +506,7 @@ static void cmd_cat(int argc, char **argv)
         printf("%s", buffer);
     }
 
+    printf("\n");
     vfs_close(fd);
 }
 
@@ -438,6 +522,20 @@ static void cmd_mkdir(int argc, char **argv)
     }
 
     const char *dirname = argv[1];
+
+    if (dirname[0] == '-')
+    {
+        printf("mkdir: invalid option '%s'\n", dirname);
+        return;
+    }
+
+    /* Check if it already exists so we can give a better message */
+    vfs_node_t *existing = vfs_resolve_path(dirname);
+    if (existing)
+    {
+        printf("mkdir: cannot create directory '%s': already exists\n", dirname);
+        return;
+    }
 
     if (vfs_mkdir(dirname, 0755) == 0)
     {
@@ -462,6 +560,20 @@ static void cmd_touch(int argc, char **argv)
 
     const char *filename = argv[1];
 
+    if (filename[0] == '-')
+    {
+        printf("touch: invalid option '%s'\n", filename);
+        return;
+    }
+
+    /* If it already exists, touch succeeds silently (no-op) */
+    vfs_node_t *existing = vfs_resolve_path(filename);
+    if (existing)
+    {
+        /* File or directory already exists — touch is a no-op */
+        return;
+    }
+
     int fd = vfs_open(filename, O_CREAT | O_WRONLY, 0644);
     if (fd < 0)
     {
@@ -470,7 +582,6 @@ static void cmd_touch(int argc, char **argv)
     }
 
     vfs_close(fd);
-    printf("File '%s' created\n", filename);
 }
 
 /*
@@ -486,6 +597,12 @@ static void cmd_write(int argc, char **argv)
 
     const char *filename = argv[1];
     const char *text = argv[2];
+
+    if (filename[0] == '-')
+    {
+        printf("write: invalid option '%s'\n", filename);
+        return;
+    }
 
     int fd = vfs_open(filename, O_CREAT | O_WRONLY | O_TRUNC, 0644);
     if (fd < 0)
@@ -539,46 +656,17 @@ static void cmd_pwd(int argc, char **argv)
     (void)argc;
     (void)argv;
 
-    /* Walk up the parent chain and collect names, then print
-     * in root-first order. */
-    vfs_node_t *cwd = vfs_get_cwd();
-    if (!cwd)
-    {
-        printf("/\n");
-        return;
-    }
-
-    /* Collect path components by walking parents */
-    const char *parts[64];
-    int depth = 0;
-
-    vfs_node_t *n = cwd;
-    while (n && n->parent && depth < 63)
-    {
-        parts[depth++] = n->name;
-        n = n->parent;
-    }
-
-    /* If we're at root or cwd has no parent, just print "/" */
-    if (depth == 0)
-    {
-        printf("/\n");
-        return;
-    }
-
-    /* Print in reverse (root first) */
-    printf("/");
-    for (int i = depth - 1; i >= 0; i--)
-    {
-        printf("%s", parts[i]);
-        if (i > 0)
-            printf("/");
-    }
-    printf("\n");
+    char path[256];
+    get_cwd_string(path, sizeof(path));
+    printf("%s\n", path);
 }
 
 /*
  * Command: rm
+ *
+ * BUG FIX: old code just said "cannot remove" for everything.  Now
+ * we check: if the target is a directory we tell the user to use
+ * rmdir instead.  Also rejects '-' args.
  */
 static void cmd_rm(int argc, char **argv)
 {
@@ -590,6 +678,26 @@ static void cmd_rm(int argc, char **argv)
 
     const char *filename = argv[1];
 
+    if (filename[0] == '-')
+    {
+        printf("rm: invalid option '%s'\n", filename);
+        return;
+    }
+
+    /* Check if it's a directory and give a helpful message */
+    vfs_node_t *node = vfs_resolve_path(filename);
+    if (!node)
+    {
+        printf("rm: cannot remove '%s': No such file or directory\n", filename);
+        return;
+    }
+
+    if (vfs_is_directory(node))
+    {
+        printf("rm: cannot remove '%s': Is a directory (use rmdir)\n", filename);
+        return;
+    }
+
     if (vfs_unlink(filename) == 0)
     {
         printf("File '%s' removed\n", filename);
@@ -597,6 +705,48 @@ static void cmd_rm(int argc, char **argv)
     else
     {
         printf("rm: cannot remove '%s'\n", filename);
+    }
+}
+
+/*
+ * Command: rmdir
+ */
+static void cmd_rmdir(int argc, char **argv)
+{
+    if (argc < 2)
+    {
+        printf("Usage: rmdir <dirname>\n");
+        return;
+    }
+
+    const char *dirname = argv[1];
+
+    if (dirname[0] == '-')
+    {
+        printf("rmdir: invalid option '%s'\n", dirname);
+        return;
+    }
+
+    vfs_node_t *node = vfs_resolve_path(dirname);
+    if (!node)
+    {
+        printf("rmdir: cannot remove '%s': No such file or directory\n", dirname);
+        return;
+    }
+
+    if (!vfs_is_directory(node))
+    {
+        printf("rmdir: cannot remove '%s': Not a directory (use rm)\n", dirname);
+        return;
+    }
+
+    if (vfs_rmdir(dirname) == 0)
+    {
+        printf("Directory '%s' removed\n", dirname);
+    }
+    else
+    {
+        printf("rmdir: cannot remove '%s': Directory not empty\n", dirname);
     }
 }
 
@@ -688,6 +838,10 @@ static void execute_command(char *cmd)
     {
         cmd_rm(argc, args);
     }
+    else if (strcmp(args[0], "rmdir") == 0)
+    {
+        cmd_rmdir(argc, args);
+    }
     else if (strcmp(args[0], "cd") == 0)
     {
         cmd_cd(argc, args);
@@ -715,14 +869,18 @@ void shell_init(void)
 }
 
 /*
- * Run's the shell main loop
+ * Run's the shell main loop.
+ * Prompt now shows the cwd so the user gets feedback from cd.
  */
 void shell_run(void)
 {
     while (1)
     {
+        char cwd[256];
+        get_cwd_string(cwd, sizeof(cwd));
+
         vga_set_color(COLOR_LIGHT_GREEN, COLOR_BLACK);
-        printf("$ ");
+        printf("%s $ ", cwd);
         vga_set_color(COLOR_WHITE, COLOR_BLACK);
 
         if (fgets(command_buffer, MAX_COMMAND_LEN))

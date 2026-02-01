@@ -63,6 +63,7 @@ void kmain(uint32_t multiboot_magic, void *multiboot_addr)
     // Auto-mount root filesystem and create directory tree
     if (vfs_mount("hda", "/", "fat32", 0) == 0)
     {
+
         /* Create standard Linux-style directory tree.
          * Errors are silently ignored - dirs may already
          * exist on disk from a previous boot. */
