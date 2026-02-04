@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2026 Trollycat
- * Virtual Filesystem (VFS) layer
+ * Virtual file system.
  */
 
 #ifndef THUBAN_VFS_H
@@ -9,7 +9,6 @@
 #include <stdint.h>
 #include <stddef.h>
 
-/* File types */
 #define VFS_FILE 0x01
 #define VFS_DIRECTORY 0x02
 #define VFS_CHARDEVICE 0x03
@@ -18,7 +17,6 @@
 #define VFS_SYMLINK 0x06
 #define VFS_MOUNTPOINT 0x08
 
-/* File flags */
 #define O_RDONLY 0x0000
 #define O_WRONLY 0x0001
 #define O_RDWR 0x0002
@@ -29,19 +27,14 @@
 #define O_APPEND 0x0400
 #define O_DIRECTORY 0x10000
 
-/* Seek modes */
 #define SEEK_SET 0
 #define SEEK_CUR 1
 #define SEEK_END 2
 
-/* Maximum path length */
 #define VFS_MAX_PATH 4096
 #define VFS_MAX_NAME 256
-
-/* Maximum open files */
 #define VFS_MAX_OPEN_FILES 256
 
-/* File permissions (POSIX-style) */
 #define S_IFMT 0170000
 #define S_IFSOCK 0140000
 #define S_IFLNK 0120000
@@ -70,6 +63,14 @@
 #define S_IWOTH 00002
 #define S_IXOTH 00001
 
+#define EPERM 1
+#define ENOENT 2
+#define EIO 5
+#define EACCES 13
+#define EEXIST 17
+#define ENOTDIR 20
+#define EISDIR 21
+
 typedef uint32_t mode_t;
 typedef int64_t off_t;
 typedef uint32_t ino_t;
@@ -80,14 +81,11 @@ typedef uint32_t gid_t;
 typedef int64_t time_t;
 typedef long ssize_t;
 
-/* Forward declarations - declare before use */
 struct vfs_node;
 struct vfs_file;
 struct vfs_superblock;
-struct vfs_superblock_operations;
 struct vfs_mount;
 
-/* Directory entry for readdir */
 struct dirent
 {
     ino_t d_ino;
@@ -97,7 +95,6 @@ struct dirent
     char d_name[VFS_MAX_NAME];
 };
 
-/* File status structure */
 struct stat
 {
     dev_t st_dev;
@@ -115,7 +112,6 @@ struct stat
     uint64_t st_blocks;
 };
 
-/* File operations */
 typedef struct vfs_file_operations
 {
     int (*open)(struct vfs_node *node, struct vfs_file *file);
@@ -126,7 +122,6 @@ typedef struct vfs_file_operations
     int (*ioctl)(struct vfs_file *file, unsigned long request, void *arg);
 } vfs_file_operations_t;
 
-/* Inode operations */
 typedef struct vfs_inode_operations
 {
     struct vfs_node *(*lookup)(struct vfs_node *dir, const char *name);
@@ -134,11 +129,8 @@ typedef struct vfs_inode_operations
     int (*mkdir)(struct vfs_node *dir, const char *name, mode_t mode);
     int (*rmdir)(struct vfs_node *dir, const char *name);
     int (*unlink)(struct vfs_node *dir, const char *name);
-    int (*symlink)(struct vfs_node *dir, const char *name, const char *target);
-    int (*readlink)(struct vfs_node *node, char *buf, size_t size);
 } vfs_inode_operations_t;
 
-/* Superblock operations */
 typedef struct vfs_superblock_operations
 {
     struct vfs_node *(*alloc_inode)(struct vfs_superblock *sb);
@@ -147,7 +139,6 @@ typedef struct vfs_superblock_operations
     int (*sync_fs)(struct vfs_superblock *sb);
 } vfs_superblock_operations_t;
 
-/* VFS Node (Inode) */
 typedef struct vfs_node
 {
     char name[VFS_MAX_NAME];
@@ -161,22 +152,15 @@ typedef struct vfs_node
     time_t mtime;
     time_t ctime;
     dev_t dev;
-
     uint32_t flags;
     uint32_t refcount;
-
     vfs_file_operations_t *fops;
     vfs_inode_operations_t *iops;
-
     void *fs_data;
     struct vfs_superblock *sb;
-
     struct vfs_node *parent;
-    struct vfs_node *children;
-    struct vfs_node *next;
 } vfs_node_t;
 
-/* Superblock */
 typedef struct vfs_superblock
 {
     dev_t dev;
@@ -185,15 +169,12 @@ typedef struct vfs_superblock
     uint64_t total_blocks;
     uint64_t free_blocks;
     uint32_t flags;
-
     struct vfs_node *root;
     vfs_superblock_operations_t *s_ops;
-
     void *fs_data;
     struct vfs_mount *mount;
 } vfs_superblock_t;
 
-/* Open file descriptor */
 typedef struct vfs_file
 {
     struct vfs_node *node;
@@ -203,7 +184,6 @@ typedef struct vfs_file
     uint32_t refcount;
 } vfs_file_t;
 
-/* Mount point */
 typedef struct vfs_mount
 {
     char *mountpoint;
@@ -212,7 +192,6 @@ typedef struct vfs_mount
     struct vfs_mount *next;
 } vfs_mount_t;
 
-/* Filesystem type registration */
 typedef struct vfs_filesystem
 {
     const char *name;
@@ -221,12 +200,9 @@ typedef struct vfs_filesystem
     struct vfs_filesystem *next;
 } vfs_filesystem_t;
 
-/* VFS API */
 void vfs_init(void);
 int vfs_register_filesystem(vfs_filesystem_t *fs);
-int vfs_unregister_filesystem(const char *name);
 int vfs_mount(const char *dev, const char *mountpoint, const char *fstype, uint32_t flags);
-int vfs_unmount(const char *mountpoint);
 vfs_node_t *vfs_resolve_path(const char *path);
 vfs_node_t *vfs_resolve_path_from(vfs_node_t *start, const char *path);
 int vfs_open(const char *path, int flags, mode_t mode);
@@ -240,16 +216,9 @@ int vfs_readdir(int fd, struct dirent *dirent, size_t count);
 int vfs_mkdir(const char *path, mode_t mode);
 int vfs_rmdir(const char *path);
 int vfs_unlink(const char *path);
-vfs_file_t *vfs_get_file(int fd);
-int vfs_alloc_fd(vfs_file_t *file);
-void vfs_free_fd(int fd);
-vfs_node_t *vfs_alloc_inode(vfs_superblock_t *sb);
-void vfs_free_inode(vfs_node_t *node);
 int vfs_is_directory(vfs_node_t *node);
-int vfs_is_file(vfs_node_t *node);
 char *vfs_basename(const char *path);
-char *vfs_dirname(const char *path);
 vfs_node_t *vfs_get_cwd(void);
 int vfs_set_cwd(vfs_node_t *node);
 
-#endif /* THUBAN_VFS_H */
+#endif
