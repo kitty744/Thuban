@@ -74,14 +74,26 @@ static char *get_cwd_string(char *buf, int buflen)
 
     const char *parts[64];
     int depth = 0;
-
     vfs_node_t *n = cwd;
+    vfs_node_t *seen[64]; /* Loop detection */
+    int seen_count = 0;
+
+    /* Stop at root OR if we see the same node twice (loop!) */
     while (n && n->parent && depth < 63)
     {
+        /* Check for loops */
+        for (int i = 0; i < seen_count; i++)
+        {
+            if (seen[i] == n)
+                goto done_walking; /* Loop detected! */
+        }
+
+        seen[seen_count++] = n;
         parts[depth++] = n->name;
         n = n->parent;
     }
 
+done_walking:
     if (depth == 0)
     {
         buf[0] = '/';
@@ -512,7 +524,7 @@ static void cmd_write(int argc, char **argv)
 
 static void cmd_cd(int argc, char **argv)
 {
-    const char *target = (argc >= 2) ? argv[1] : "/";
+    const char *target = (argc >= 2) ? argv[1] : "/home/user";
     vfs_node_t *node = vfs_resolve_path(target);
     if (!node)
     {
@@ -522,8 +534,14 @@ static void cmd_cd(int argc, char **argv)
     if (!vfs_is_directory(node))
     {
         printf("cd: '%s': Not a directory\n", target);
+        /* FREE the allocated node! */
+        if (node->fs_data)
+            free(node->fs_data);
+        free(node);
         return;
     }
+
+    /* Set CWD - this keeps the node in memory */
     vfs_set_cwd(node);
 }
 
@@ -807,14 +825,6 @@ static void execute_command(char *cmd)
 }
 
 void shell_init(void)
-{
-    vga_set_color(COLOR_LIGHT_CYAN, COLOR_BLACK);
-    printf("\nWelcome to Thuban OS v0.3.0\n");
-    printf("Type 'help' for available commands\n\n");
-    vga_set_color(COLOR_WHITE, COLOR_BLACK);
-}
-
-void shell_run(void)
 {
     while (1)
     {

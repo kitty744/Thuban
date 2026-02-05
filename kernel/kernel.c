@@ -17,43 +17,71 @@
 #include <thuban/syscall.h>
 #include <thuban/blkdev.h>
 #include <thuban/vfs.h>
+#include <thuban/vga.h>
 #include <thuban/fat32.h>
 
 static void create_directory_structure(void)
 {
-    const char *sys_dirs[] = {
-        "/bin", "/boot", "/dev", "/etc", "/lib", "/media", "/mnt",
-        "/opt", "/proc", "/root", "/run", "/sbin", "/srv", "/sys",
-        "/tmp", "/usr", "/var", "/home", NULL};
+/* Helper macro to check and free nodes */
+#define CHECK_AND_CREATE(path, mode)                        \
+    do                                                      \
+    {                                                       \
+        vfs_node_t *node = vfs_resolve_path(path);          \
+        if (node)                                           \
+        {                                                   \
+            /* Already exists - free the allocated node! */ \
+            if (node->fs_data)                              \
+                free(node->fs_data);                        \
+            free(node);                                     \
+        }                                                   \
+        else                                                \
+        {                                                   \
+            vfs_mkdir(path, mode);                          \
+        }                                                   \
+    } while (0)
 
-    for (int i = 0; sys_dirs[i]; i++)
-    {
-        vfs_mkdir(sys_dirs[i], 0555);
-    }
+    /* System directories (read-only) */
+    CHECK_AND_CREATE("/bin", 0555);
+    CHECK_AND_CREATE("/boot", 0555);
+    CHECK_AND_CREATE("/dev", 0555);
+    CHECK_AND_CREATE("/etc", 0555);
+    CHECK_AND_CREATE("/lib", 0555);
+    CHECK_AND_CREATE("/media", 0555);
+    CHECK_AND_CREATE("/mnt", 0555);
+    CHECK_AND_CREATE("/opt", 0555);
+    CHECK_AND_CREATE("/proc", 0555);
+    CHECK_AND_CREATE("/root", 0555);
+    CHECK_AND_CREATE("/run", 0555);
+    CHECK_AND_CREATE("/sbin", 0555);
+    CHECK_AND_CREATE("/srv", 0555);
+    CHECK_AND_CREATE("/sys", 0555);
+    CHECK_AND_CREATE("/tmp", 0555);
+    CHECK_AND_CREATE("/usr", 0555);
+    CHECK_AND_CREATE("/var", 0555);
+    CHECK_AND_CREATE("/home", 0555);
 
-    const char *usr_dirs[] = {
-        "/usr/bin", "/usr/lib", "/usr/local", "/usr/sbin", "/usr/share", NULL};
-    for (int i = 0; usr_dirs[i]; i++)
-    {
-        vfs_mkdir(usr_dirs[i], 0555);
-    }
+    /* /usr subdirectories */
+    CHECK_AND_CREATE("/usr/bin", 0555);
+    CHECK_AND_CREATE("/usr/lib", 0555);
+    CHECK_AND_CREATE("/usr/local", 0555);
+    CHECK_AND_CREATE("/usr/sbin", 0555);
+    CHECK_AND_CREATE("/usr/share", 0555);
 
-    const char *var_dirs[] = {
-        "/var/log", "/var/tmp", "/var/cache", NULL};
-    for (int i = 0; var_dirs[i]; i++)
-    {
-        vfs_mkdir(var_dirs[i], 0555);
-    }
+    /* /var subdirectories */
+    CHECK_AND_CREATE("/var/log", 0555);
+    CHECK_AND_CREATE("/var/tmp", 0555);
+    CHECK_AND_CREATE("/var/cache", 0555);
 
-    vfs_mkdir("/home/user", 0755);
+    /* User directories (writable) */
+    CHECK_AND_CREATE("/home/user", 0755);
+    CHECK_AND_CREATE("/home/user/Desktop", 0755);
+    CHECK_AND_CREATE("/home/user/Videos", 0755);
+    CHECK_AND_CREATE("/home/user/Documents", 0755);
+    CHECK_AND_CREATE("/home/user/Downloads", 0755);
+    CHECK_AND_CREATE("/home/user/Music", 0755);
+    CHECK_AND_CREATE("/home/user/Pictures", 0755);
 
-    const char *user_dirs[] = {
-        "/home/user/Desktop", "/home/user/Videos", "/home/user/Documents",
-        "/home/user/Downloads", "/home/user/Music", "/home/user/Pictures", NULL};
-    for (int i = 0; user_dirs[i]; i++)
-    {
-        vfs_mkdir(user_dirs[i], 0755);
-    }
+#undef CHECK_AND_CREATE
 }
 
 void kmain(uint32_t multiboot_magic, void *multiboot_addr)
@@ -78,13 +106,17 @@ void kmain(uint32_t multiboot_magic, void *multiboot_addr)
     if (vfs_mount("hda", "/", "fat32", 0) == 0)
     {
         create_directory_structure();
+
+        /* Mark system initialization as complete - enables permission enforcement */
+        vfs_set_init_complete();
+
+        /* Set starting directory to /home/user */
         vfs_node_t *user_home = vfs_resolve_path("/home/user");
         if (user_home)
             vfs_set_cwd(user_home);
     }
 
     shell_init();
-    shell_run();
 
     while (1)
         asm volatile("hlt");

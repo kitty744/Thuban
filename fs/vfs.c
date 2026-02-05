@@ -13,8 +13,8 @@ static vfs_mount_t *mount_list = NULL;
 static vfs_filesystem_t *fs_list = NULL;
 static vfs_file_t *fd_table[VFS_MAX_OPEN_FILES];
 static vfs_node_t *current_working_dir = NULL;
-static vfs_node_t *home_root = NULL;
 static spinlock_t vfs_lock;
+static int vfs_system_init_complete = 0;
 
 void vfs_init(void)
 {
@@ -24,7 +24,7 @@ void vfs_init(void)
     mount_list = NULL;
     fs_list = NULL;
     current_working_dir = NULL;
-    home_root = NULL;
+    vfs_system_init_complete = 0;
 }
 
 int vfs_register_filesystem(vfs_filesystem_t *fs)
@@ -219,16 +219,16 @@ vfs_node_t *vfs_resolve_path_from(vfs_node_t *start, const char *path)
         }
         if (strcmp(token, "..") == 0)
         {
-            if (cur->parent && cur != home_root)
+            if (cur->parent)
             {
                 if (owned)
                 {
                     if (cur->fs_data)
                         free(cur->fs_data);
                     free(cur);
+                    owned = 0;
                 }
                 cur = cur->parent;
-                owned = 0;
             }
             token = next;
             continue;
@@ -277,17 +277,55 @@ vfs_node_t *vfs_resolve_path_from(vfs_node_t *start, const char *path)
     return cur;
 }
 
+/* Helper to check if path is under /home/user */
+static int is_path_writable(vfs_node_t *node)
+{
+    if (!node)
+        return 0;
+
+    /* During system initialization, allow all writes */
+    if (!vfs_system_init_complete)
+        return 1;
+
+    /* Walk up the parent chain looking for /home/user */
+    vfs_node_t *n = node;
+    int found_user = 0;
+    int found_home = 0;
+
+    while (n)
+    {
+        if (!found_user && strcmp(n->name, "user") == 0)
+            found_user = 1;
+        else if (found_user && strcmp(n->name, "home") == 0)
+        {
+            found_home = 1;
+            break;
+        }
+        n = n->parent;
+    }
+
+    return (found_user && found_home) ? 1 : 0;
+}
+
 static int vfs_check_permission(vfs_node_t *node, int flags)
 {
     if (!node)
         return -ENOENT;
-    mode_t required = 0;
-    if (flags & O_RDONLY || flags & O_RDWR)
-        required |= S_IRUSR;
-    if (flags & O_WRONLY || flags & O_RDWR)
-        required |= S_IWUSR;
-    if ((node->mode & required) != required)
-        return -EACCES;
+
+    if (flags & (O_WRONLY | O_RDWR | O_CREAT | O_TRUNC | O_APPEND))
+    {
+        if (!is_path_writable(node))
+            return -EACCES;
+        if (!(node->mode & S_IWUSR))
+            return -EACCES;
+    }
+
+    if (flags & (O_RDONLY | O_RDWR))
+    {
+        if (!(node->mode & S_IRUSR))
+            return -EACCES;
+    }
+
     return 0;
 }
 
@@ -494,6 +532,14 @@ int vfs_stat(const char *path, struct stat *buf)
     buf->st_ctime = node->ctime;
     buf->st_blksize = node->sb ? node->sb->blocksize : 512;
     buf->st_blocks = (node->size + 511) / 512;
+
+    /* Free the node if it was dynamically allocated */
+    if (node != current_working_dir && node->fs_data)
+    {
+        free(node->fs_data);
+        free(node);
+    }
+
     return 0;
 }
 
@@ -535,8 +581,17 @@ int vfs_mkdir(const char *path, mode_t mode)
 {
     if (!path)
         return -1;
-    if (vfs_resolve_path(path))
+
+    vfs_node_t *existing = vfs_resolve_path(path);
+    if (existing)
+    {
+        /* Free the node - it already exists */
+        if (existing->fs_data)
+            free(existing->fs_data);
+        free(existing);
         return -EEXIST;
+    }
+
     const char *slash = strrchr(path, '/');
     char dir_path[VFS_MAX_PATH];
     const char *name;
@@ -622,8 +677,6 @@ int vfs_set_cwd(vfs_node_t *node)
     if (!node || !vfs_is_directory(node))
         return -1;
     current_working_dir = node;
-    if (strcmp(node->name, "user") == 0 && node->parent && strcmp(node->parent->name, "home") == 0)
-        home_root = node;
     return 0;
 }
 
@@ -649,4 +702,9 @@ char *vfs_dirname(const char *path)
         return buf;
     }
     return ".";
+}
+
+void vfs_set_init_complete(void)
+{
+    vfs_system_init_complete = 1;
 }

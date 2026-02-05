@@ -220,5 +220,6 @@ int vfs_is_directory(vfs_node_t *node);
 char *vfs_basename(const char *path);
 vfs_node_t *vfs_get_cwd(void);
 int vfs_set_cwd(vfs_node_t *node);
+void vfs_set_init_complete(void);
 
 #endif
